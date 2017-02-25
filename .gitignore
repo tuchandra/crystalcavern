@@ -1,3 +1,4 @@
 *.obj
+!libgame.obj
 *.exe
 *.pdf
