@@ -18,14 +18,36 @@ include game.inc
 
 ;; Has keycodes
 include keys.inc
+include \masm32\include\user32.inc
+includelib \masm32\lib\user32.lib
 
 .DATA
 
-;; If you need to, you can place global variables here
+;; Testing strings
 intersect_str BYTE "intersect!", 0
 no_intersect_str BYTE "do not intersect :(", 0
+never_str BYTE "you should never reach here", 0
 zero_str BYTE "returned 0", 0
-one_str BYTE "retruned 1", 0
+one_str BYTE "returned 1", 0
+
+;; Format strings
+fmtStr_eax BYTE "eax: %d", 0
+outStr_eax BYTE 256 DUP(0)
+
+fmtStr_ebx BYTE "ebx: %d", 0
+outStr_ebx BYTE 256 DUP(0)
+
+fmtStr_ecx BYTE "ecx: %d", 0
+outStr_ecx BYTE 256 DUP(0)
+
+fmtStr_edx BYTE "edx: %d", 0
+outStr_edx BYTE 256 DUP(0)
+
+fmtStr_first BYTE "first: %d", 0
+outStr_first BYTE 256 DUP(0)
+
+fmtStr_second BYTE "second: %d", 0
+outStr_second BYTE 256 DUP(0)
 
 .CODE
 
@@ -36,7 +58,7 @@ one_str BYTE "retruned 1", 0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ClearScreen PROC USES edi
+ClearScreen PROC USES edi eax
         ;; Find end of screen
         LOCAL ScreenEndPtr:DWORD
         mov eax, ScreenBitsPtr
@@ -57,9 +79,82 @@ ClearScreen PROC USES edi
         ;; if (edi < ScreenEndPtr) loop again
         cmp edi, ScreenEndPtr
         jl ClearScreen_loop
+
         ret
 
 ClearScreen ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Utility function: print registers onto the screen
+;                   this is a bad way to debug
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PrintRegs PROC USES eax ebx ecx edx esi edi
+        ;; print eax
+        push eax
+        push OFFSET fmtStr_eax
+        push OFFSET outStr_eax
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_eax, 10, 400, 0ffh
+
+        ;; print ebx
+        push ebx
+        push OFFSET fmtStr_ebx
+        push OFFSET outStr_ebx
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_ebx, 10, 410, 0ffh
+
+        ;; print ecx
+        push ecx
+        push OFFSET fmtStr_ecx
+        push OFFSET outStr_ecx
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_ecx, 10, 420, 0ffh
+
+        ;; print edx
+        push edx
+        push OFFSET fmtStr_edx
+        push OFFSET outStr_edx
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_edx, 10, 430, 0ffh
+
+        ret
+PrintRegs ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Utility function: print two values onto the screen
+;                   this is also a bad way to debug
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+PrintTwoVals PROC USES eax ebx ecx edx esi edi first:DWORD, second:DWORD
+        ;; print first val
+        push first
+        push OFFSET fmtStr_first
+        push OFFSET outStr_first
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_first, 150, 400, 0ffh
+
+        ;; print second val 
+        push second
+        push OFFSET fmtStr_second
+        push OFFSET outStr_second
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_second, 150, 410, 0ffh
+
+        ret
+PrintTwoVals ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,7 +183,6 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
     ;; else return true
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
         LOCAL oneLeft:DWORD, oneRight:DWORD, oneTop:DWORD, oneBottom:DWORD
         LOCAL twoLeft:DWORD, twoRight:DWORD, twoTop:DWORD, twoBottom:DWORD
 
@@ -96,8 +190,12 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
     ; Compute bounding box for first bitmap
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        mov edi, oneBitmap
+        ;; this doesn't work right
+        INVOKE ClearScreen
+        INVOKE PrintTwoVals, 123, oneY
 
+        mov edi, oneBitmap
+        
         ;; oneLeft = oneX - oneBitmap.dwWidth / 2
         mov ecx, (EECS205BITMAP PTR [edi]).dwWidth
         sar ecx, 1
@@ -109,6 +207,12 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         sal ecx, 1  ; ecx <- dwWidth (ecx had dwWidth / 2)
         add edx, ecx
         mov oneRight, edx
+
+        ;; this doesn't work right
+        ;; these are -16 and 16 because it's reading oneX as 0 for some reason
+        ;; and if I don't call ClearScreen, it prints something twice...
+        ;INVOKE ClearScreen
+        ;INVOKE PrintTwoVals, oneLeft, oneRight
 
         ;; oneTop = oneY - oneBitmap.dwHeight / 2
         mov ecx, (EECS205BITMAP PTR [edi]).dwHeight
@@ -139,6 +243,12 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         sal ecx, 1  ; ecx <- dwWidth (ecx had dwWidth / 2)
         add edx, ecx
         mov twoRight, edx
+
+        ;mov ecx, (EECS205BITMAP PTR [edi]).dwWidth
+        ;sar ecx, 1
+        ;mov edx, twoX
+        ;add edx, ecx
+        ;mov twoRight, edx
 
         ;; twoTop = twoY - twoBitmap.dwHeight / 2
         mov ecx, (EECS205BITMAP PTR [edi]).dwHeight
@@ -181,49 +291,50 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         jg CheckIntersect_no_overlap
 
         ;; else, they overlap
-        INVOKE ClearScreen
-        INVOKE DrawStr, OFFSET intersect_str, 400, 360, 0ffh
+        INVOKE DrawStr, OFFSET intersect_str, 0, 0, 0ffh
         mov eax, 1
         ret
-        jmp CheckIntersect_end
-        ;; Some kind of error is causing this jump to not take place
+
+        INVOKE DrawStr, OFFSET never_str, 400, 400, 0ffh
 
     ;; reached when they do not overlap
     CheckIntersect_no_overlap:
 
-        INVOKE DrawStr, OFFSET no_intersect_str, 400, 360, 0ffh
+        INVOKE DrawStr, OFFSET no_intersect_str, 0, 100, 0ffh
         mov eax, 0
-
-    CheckIntersect_end:
         ret
+
 CheckIntersect ENDP
 
 
-GameInit PROC USES edi
+GameInit PROC USES edi eax
         ;; Positions of stars
-        LOCAL oneX:DWORD, oneY:DWORD, twoX:DWORD, twoY:DWORD
+        LOCAL starOneX:DWORD, starOneY:DWORD, starTwoX:DWORD, starTwoY:DWORD
 
         ;; Clear screen
-        INVOKE ClearScreen
+        ;INVOKE ClearScreen
 
-        mov oneX, 100
-        mov oneY, 100
-        mov twoX, 200
-        mov twoY, 100
+        mov starOneX, 100
+        mov starOneY, 100
+        mov starTwoX, 120
+        mov starTwoY, 100
 
-        INVOKE BasicBlit, OFFSET StarBitmap, oneX, oneY
-        INVOKE BasicBlit, OFFSET StarBitmap, twoX, twoY
+        ;INVOKE BasicBlit, OFFSET StarBitmap, starOneX, starOneY
+        ;INVOKE BasicBlit, OFFSET StarBitmap, starTwoX, starTwoY
 
-        INVOKE CheckIntersect, oneX, oneY, OFFSET StarBitmap, twoX, twoY, OFFSET StarBitmap
+        INVOKE CheckIntersect, starOneX, 456, OFFSET StarBitmap, starTwoX, starTwoY, OFFSET StarBitmap
 
         cmp eax, 0
         jne GameInit_intersect_1
+        ;; They don't intersect, do something, then jump to end
+        ;INVOKE DrawStr, OFFSET zero_str, 200, 200, 0ffh
 
-        INVOKE DrawStr, OFFSET zero_str, 200, 200, 0ffh
+
         jmp GameInit_done
 
     GameInit_intersect_1:
-    INVOKE DrawStr, OFFSET zero_str, 200, 200, 0ffh
+    ;; They intersect, do something, then end
+
 
     GameInit_done: 
     	ret
