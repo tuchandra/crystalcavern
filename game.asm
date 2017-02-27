@@ -81,7 +81,6 @@ ClearScreen PROC USES edi eax
         jl ClearScreen_loop
 
         ret
-
 ClearScreen ENDP
 
 
@@ -190,10 +189,6 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
     ; Compute bounding box for first bitmap
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; this doesn't work right
-        INVOKE ClearScreen
-        INVOKE PrintTwoVals, 123, oneY
-
         mov edi, oneBitmap
         
         ;; oneLeft = oneX - oneBitmap.dwWidth / 2
@@ -207,12 +202,6 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         sal ecx, 1  ; ecx <- dwWidth (ecx had dwWidth / 2)
         add edx, ecx
         mov oneRight, edx
-
-        ;; this doesn't work right
-        ;; these are -16 and 16 because it's reading oneX as 0 for some reason
-        ;; and if I don't call ClearScreen, it prints something twice...
-        ;INVOKE ClearScreen
-        ;INVOKE PrintTwoVals, oneLeft, oneRight
 
         ;; oneTop = oneY - oneBitmap.dwHeight / 2
         mov ecx, (EECS205BITMAP PTR [edi]).dwHeight
@@ -291,16 +280,11 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         jg CheckIntersect_no_overlap
 
         ;; else, they overlap
-        INVOKE DrawStr, OFFSET intersect_str, 0, 0, 0ffh
         mov eax, 1
         ret
 
-        INVOKE DrawStr, OFFSET never_str, 400, 400, 0ffh
-
     ;; reached when they do not overlap
     CheckIntersect_no_overlap:
-
-        INVOKE DrawStr, OFFSET no_intersect_str, 0, 100, 0ffh
         mov eax, 0
         ret
 
@@ -308,42 +292,17 @@ CheckIntersect ENDP
 
 
 GameInit PROC USES edi eax
-        ;; Positions of stars
-        LOCAL starOneX:DWORD, starOneY:DWORD, starTwoX:DWORD, starTwoY:DWORD
-
-        ;; Clear screen
-        ;INVOKE ClearScreen
-
-        mov starOneX, 100
-        mov starOneY, 100
-        mov starTwoX, 120
-        mov starTwoY, 100
-
-        ;INVOKE BasicBlit, OFFSET StarBitmap, starOneX, starOneY
-        ;INVOKE BasicBlit, OFFSET StarBitmap, starTwoX, starTwoY
-
-        INVOKE CheckIntersect, starOneX, 456, OFFSET StarBitmap, starTwoX, starTwoY, OFFSET StarBitmap
-
-        cmp eax, 0
-        jne GameInit_intersect_1
-        ;; They don't intersect, do something, then jump to end
-        ;INVOKE DrawStr, OFFSET zero_str, 200, 200, 0ffh
+        ;; Clear screen, just in case
+        INVOKE ClearScreen
 
 
-        jmp GameInit_done
-
-    GameInit_intersect_1:
-    ;; They intersect, do something, then end
-
-
-    GameInit_done: 
-    	ret
-
+        ret
 GameInit ENDP
 
 
 GamePlay PROC
-
+        
+        INVOKE CheckIntersect, 100, 100, OFFSET StarBitmap, 120, 120, OFFSET StarBitmap
 
 	ret
 GamePlay ENDP
