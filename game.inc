@@ -36,7 +36,12 @@ EXTERNDEF KeyPress:DWORD
 EXTERNDEF MOUSE:EECS205BITMAP
 
 EXTERNDEF PKMN1:EECS205BITMAP
-EXTERNDEF PKMN2:EECS205BITMAP
+
+EXTERNDEF PKMN2_UP:EECS205BITMAP
+EXTERNDEF PKMN2_DOWN:EECS205BITMAP
+EXTERNDEF PKMN2_LEFT:EECS205BITMAP
+EXTERNDEF PKMN2_RIGHT:EECS205BITMAP
+
 EXTERNDEF PKMN3:EECS205BITMAP
 
 EXTERNDEF ATTK1:EECS205BITMAP
@@ -53,22 +58,30 @@ GRIDX = 25 + 1
 GRIDY = 18 + 1
 
 ;; Definition for MONSTER (Pokemon wandering on map)
-;; bitmap       DWORD pointer to EECS205BITMAP
-;; active       BYTE, but 0 or 1 for whether should be rendered
+;; bitmap       DWORD pointer to the current bitmap
+;; bitmap_(dir) DWORD pointer to an EECS205BITMAP for each direction (up, down, left, right)
+;; active       DWORD, but 0 or 1 for whether should be rendered
 ;; disappear    DWORD for frames until it disappears (-1 = never)
 ;; (posX, posY) FXPT position coordinates
-;; rotation     FXPT rotation angle
+;; direction    DWORD, but 0 (up), 1 (down), 2 (left), 3 (right)
 ;; (velX, velY) FXPT velocity
 ;; TODO health, etc.
 _SPRITE STRUCT
-    bitmap      DWORD   ?
-    active      DWORD    1
-    disappear   DWORD   -1
-    posX        FXPT    ?
-    posY        FXPT    ?
-    rotation    FXPT    0
-    velX        FXPT    ?
-    velY        FXPT    ?
+    bitmap          DWORD   ?
+    bitmap_up       DWORD   ?
+    bitmap_down     DWORD   ?
+    bitmap_left     DWORD   ?
+    bitmap_right    DWORD   ?
+    direction       DWORD   ?
+
+    active          DWORD    1
+    disappear       DWORD   -1
+    
+    posX            FXPT    ?
+    posY            FXPT    ?
+    rotation        FXPT    0
+    velX            FXPT    ?
+    velY            FXPT    ?
 _SPRITE ENDS
 
 SPRITE TYPEDEF _SPRITE

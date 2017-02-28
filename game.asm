@@ -477,8 +477,15 @@ GameInit PROC
         INVOKE GridToFixed, eax
         mov player.posY, eax
 
-        ;; Set sprite
-        mov player.bitmap, OFFSET PKMN2
+        ;; Set sprite and direction
+        mov player.bitmap, OFFSET PKMN2_LEFT
+        mov player.direction, 2
+
+        ;; Set all sprites
+        mov player.bitmap_up, OFFSET PKMN2_UP
+        mov player.bitmap_down, OFFSET PKMN2_DOWN
+        mov player.bitmap_left, OFFSET PKMN2_LEFT
+        mov player.bitmap_right, OFFSET PKMN2_RIGHT
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemy
@@ -553,7 +560,9 @@ GamePlay PROC
         sal ebx, 16
         sub player.posY, ebx
 
-        mov player.rotation, PI_HALF
+        mov eax, player.bitmap_up
+        mov player.bitmap, eax
+        mov player.direction, 0
 
     GamePlay_not_up:
         ;; Check if down arrow was pressed
@@ -565,7 +574,9 @@ GamePlay PROC
         sal ebx, 16
         add player.posY, ebx
 
-        mov player.rotation, PI + PI_HALF
+        mov eax, player.bitmap_down
+        mov player.bitmap, eax
+        mov player.direction, 1
 
     GamePlay_not_down:
         ;; Check if left arrow was pressed
@@ -577,19 +588,24 @@ GamePlay PROC
         sal ebx, 16
         sub player.posX, ebx
 
-        mov player.rotation, 0
+        mov eax, player.bitmap_left
+        mov player.bitmap, eax
+        mov player.direction, 2
 
     GamePlay_not_left:
         ;; Check if right arrow was pressed
         cmp eax, VK_RIGHT
         jne GamePlay_not_right
 
-        mov player.rotation, PI
-
         ;; Move player one space right, face right
         mov ebx, 24
         sal ebx, 16
         add player.posX, ebx
+
+        mov eax, player.bitmap_right
+        mov player.bitmap, eax
+        mov player.direction, 3
+
 
     GamePlay_not_right:
 
@@ -615,35 +631,36 @@ GamePlay PROC
         sal ebx, 16
 
         ;; Set attack velocity in direction of current player
-        mov eax, player.rotation
+        ;; Direction is 0 (up), 1 (down), 2 (left), 3 (right)
+        mov eax, player.direction
         cmp eax, 0
-        jne GamePlay_rotation_not_zero
-
-        neg ebx
-        mov currAttack.velX, ebx
-        mov currAttack.velY, 0
-
-    GamePlay_rotation_not_zero:
-        cmp eax, PI_HALF
-        jne GamePlay_rotation_not_half
+        jne GamePlay_attack_not_up
 
         neg ebx
         mov currAttack.velX, 0
         mov currAttack.velY, ebx
 
-    GamePlay_rotation_not_half:
-        cmp eax, PI
-        jne GamePlay_rotation_not_pi
+    GamePlay_attack_not_up:
+        cmp eax, 1
+        jne GamePlay_attack_not_down
 
+        mov currAttack.velX, 0
+        mov currAttack.velY, ebx
+
+    GamePlay_attack_not_down:
+        cmp eax, 2
+        jne GamePlay_attack_not_left
+
+        neg ebx
         mov currAttack.velX, ebx
         mov currAttack.velY, 0
 
-    GamePlay_rotation_not_pi:
-        cmp eax, PI_HALF + PI
+    GamePlay_attack_not_left:
+        cmp eax, 3
         jne GamePlay_not_space
 
-        mov currAttack.velX, 0
-        mov currAttack.velY, ebx
+        mov currAttack.velX, ebx
+        mov currAttack.velY, 0
 
     GamePlay_not_space:
 
