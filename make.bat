@@ -30,34 +30,34 @@ set MASMINCPATH=C:\masm32\include
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :::
 ::: DO NOT NEED TO MODIFY ANYTHING BELOW
+::: well that's just wrong now
 :::
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 set path=%path%;%MASMPATH%
 
 ml  /I%MASMINCPATH% /c  /coff  /Cp stars.asm
-
 if %errorlevel% neq 0 goto :error
 
 ml  /I%MASMINCPATH% /c  /coff  /Cp lines.asm
-
 if %errorlevel% neq 0 goto :error
 
 ml  /I%MASMINCPATH% /c  /coff  /Cp trig.asm
-
 if %errorlevel% neq 0 goto :error
 
 ml  /I%MASMINCPATH% /c  /coff  /Cp blit.asm
-
 if %errorlevel% neq 0 goto :error
 
 ml /I%MASMINCPATH% /c  /coff  /Cp game.asm
-
 if %errorlevel% neq 0 goto :error
 
+ml /I%MASMINCPATH% /c  /coff  /Cp sprites.asm
+if %errorlevel% neq 0 goto :error
 
-link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj libgame.obj
+ml /I%MASMINCPATH% /c  /coff  /Cp grid.asm
+if %errorlevel% neq 0 goto :error
 
+link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj libgame.obj sprites.obj grid.obj
 if %errorlevel% neq 0 goto :error
 
 pause
