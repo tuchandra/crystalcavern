@@ -606,7 +606,6 @@ GamePlay PROC
         mov player.bitmap, eax
         mov player.direction, 3
 
-
     GamePlay_not_right:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
