@@ -14,16 +14,24 @@ include stars.inc
 include lines.inc
 include trig.inc
 include blit.inc
+include grid.inc
 include game.inc
 
 ;; Has keycodes
 include keys.inc
+
+;; For printing to screen
 include \masm32\include\user32.inc
 includelib \masm32\lib\user32.lib
 
+;; For random numbers
+include \masm32\include\masm32.inc
+includelib \masm32\lib\masm32.lib
+
 .DATA
 
-bird SPRITE< >
+player MONSTER< >
+enemy MONSTER< >
 
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
@@ -76,7 +84,7 @@ ClearScreen PROC USES edi eax
 
         ;; for (i = ScreenBitsPtr; i < ScreenEnd; i++) 
         ;;     Screen[i] <- black pixel
-    
+
     ClearScreen_loop:
         mov (BYTE PTR [edi]), al
         inc edi
@@ -290,27 +298,76 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
 CheckIntersect ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Collision detection with fixed point positions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CheckIntersectFixed PROC oneX:FXPT, oneY:FXPT, oneBitmap:PTR EECS205BITMAP, twoX:FXPT, twoY:FXPT, twoBitmap:PTR EECS205BITMAP
+
+    ;; Convert everything from fixed point
+    LOCAL oneXD:DWORD, oneYD:DWORD, twoXD:DWORD, twoYD:DWORD
+    
+    mov eax, oneX
+    mov oneXD, eax
+    sar oneXD, 16
+
+    mov eax, oneY
+    mov oneYD, eax
+    sar oneYD, 16
+
+    mov eax, twoX
+    mov twoXD, eax
+    sar twoXD, 16
+
+    mov eax, twoY
+    mov twoYD, eax
+    sar twoYD, 16
+
+    ;; Call the normal CheckIntersect
+    INVOKE CheckIntersect, oneXD, oneYD, oneBitmap, twoXD, twoYD, twoBitmap
+
+    ;; Result is already in eax
+    ret
+CheckIntersectFixed ENDP
+
+
 GameInit PROC
-        ;; Initailize bird at (100, 100)
-        mov eax, 100
-        sal eax, 16
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Seed random numbers
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; {edx, eax} <- internal cycle counter -- works as seed
+        rdtsc
+        invoke nseed, eax
 
-        mov bird.posX, eax
-        mov bird.posY, eax
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize player
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; Set position
+        INVOKE nrandom, GRIDX
+        INVOKE GridToFixed, eax
+        mov player.posX, eax
 
-        ;; Initialize bird velocity
-        mov eax, 1
-        sal eax, 16
+        INVOKE nrandom, GRIDY
+        INVOKE GridToFixed, eax
+        mov player.posY, eax
 
-        mov bird.velX, eax
-        mov bird.velY, 0
+        ;; Set sprite
+        mov player.sprite, OFFSET PKMN2
 
-        ;; Initialize bird acceleration
-        mov eax, 1
-        sal eax, 16
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize enemy
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; Set position
+        INVOKE GridToFixed, 10
+        mov enemy.posX, eax
 
-        mov bird.accX, 0
-        mov bird.accY, eax
+        INVOKE GridToFixed, 10
+        mov enemy.posY, eax
+
+        ;; Set sprite
+        mov enemy.sprite, OFFSET PKMN3
 
         ret
 GameInit ENDP
@@ -321,74 +378,118 @@ GamePlay PROC
         INVOKE ClearScreen
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Draw fixed star
+    ;; Render background
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        INVOKE BasicBlit, OFFSET StarBitmap, 200, 200
+;        INVOKE BasicBlit, OFFSET StarBitmap, 200, 200
+
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Draw bird
+    ;; Render enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        mov eax, bird.accX
-        add bird.velX, eax
-
-        mov eax, bird.accY
-        add bird.velY, eax
-
-        ;; Move bird
-        mov eax, bird.velX
-        add bird.posX, eax
-
-        mov eax, bird.velY
-        add bird.posY, eax
-
+    
         ;; Convert positions out of fixed point
-        mov ebx, bird.posX
+        mov ebx, enemy.posX
         sar ebx, 16
 
-        mov ecx, bird.posY
+        mov ecx, enemy.posY
         sar ecx, 16
 
-        INVOKE BasicBlit, OFFSET StarBitmap, ebx, ecx
-
+        ;; Render enemy sprite
+        INVOKE BasicBlit, enemy.sprite, ebx, ecx
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Collision detection
+    ;; Render player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; Leave fixed point
-        mov eax, bird.posX
-        sar eax, 16
-
-        mov ebx, bird.posY
+        ;; Convert positions out of fixed point
+        mov ebx, player.posX
         sar ebx, 16
 
-        INVOKE CheckIntersect, 200, 200, OFFSET StarBitmap, eax, ebx, OFFSET StarBitmap
+        mov ecx, player.posY
+        sar ecx, 16
+
+        ;; Render player sprite
+        INVOKE BasicBlit, player.sprite, ebx, ecx
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Move player -- arrow key controls
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov eax, KeyPress
+
+        ;; Check if up arrow was pressed
+        cmp eax, VK_UP
+        jne GamePlay_not_up
+
+        ;; Move player one space up
+        mov ebx, 24
+        sal ebx, 16
+        sub player.posY, ebx
+
+    GamePlay_not_up:
+        ;; Check if down arrow was pressed
+        cmp eax, VK_DOWN
+        jne GamePlay_not_down
+
+        ;; Move player one space down
+        mov ebx, 24
+        sal ebx, 16
+        add player.posY, ebx
+
+    GamePlay_not_down:
+        ;; Check if left arrow was pressed
+        cmp eax, VK_LEFT
+        jne GamePlay_not_left
+
+        ;; Move player one space left
+        mov ebx, 24
+        sal ebx, 16
+        sub player.posX, ebx
+
+    GamePlay_not_left:
+        ;; Check if right arrow was pressed
+        cmp eax, VK_RIGHT
+        jne GamePlay_not_right
+
+        ;; Move player one space right
+        mov ebx, 24
+        sal ebx, 16
+        add player.posX, ebx
+
+    GamePlay_not_right:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Collision detection
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Compare enemy and player
+        INVOKE CheckIntersectFixed, enemy.posX, enemy.posY, enemy.sprite, player.posX, player.posY, player.sprite
         cmp eax, 1
         jne GamePlay_no_collision
 
-        ;; Make bird fly backwards
-        mov eax, -2
-        sal eax, 16
-        mov bird.velX, eax
+        ;; Otherwise, there was a collision
+        ;; Put player elsewhere
+        INVOKE GridToFixed, 12
+        mov player.posX, eax
+
+        INVOKE GridToFixed, 8
+        mov player.posY, eax
 
     GamePlay_no_collision:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Check if space is pressed
+    ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        mov eax, KeyPress
-        cmp eax, VK_SPACE
-        jne GamePlay_Space_not_pressed
+        mov eax, player.posX
+        sar eax, 16
 
-        ;; Set velocity
-        mov eax, -8
-        sal eax, 16
-        mov bird.velY, eax
+        mov ebx, player.posY
+        sar ebx, 16
+        INVOKE PrintTwoVals, eax, ebx
 
-    GamePlay_Space_not_pressed:
+
 
 	ret
 GamePlay ENDP

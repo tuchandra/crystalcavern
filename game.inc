@@ -32,21 +32,29 @@ EXTERNDEF KeyUp:DWORD
 EXTERNDEF KeyDown:DWORD
 EXTERNDEF KeyPress:DWORD
 
+;; Pokemon sprites
+EXTERNDEF PKMN1:EECS205BITMAP
+EXTERNDEF PKMN2:EECS205BITMAP
+EXTERNDEF PKMN3:EECS205BITMAP
+
 ;; Type definitions
 FXPT TYPEDEF SDWORD
 
-;; User defined struct
-;; contains position, velocity, acceleration, all with (x, y) coords
-_SPRITE STRUCT
+;; Grid size
+GRIDX = 26
+GRIDY = 20
+
+;; Definition for MONSTER (Pokemon wandering on map)
+;; sprite: DWORD pointer to EECS205BITMAP
+;; (posX, posY) - FXPT coordinates
+;; health, etc.
+_MONSTER STRUCT
+    sprite DWORD    ?
     posX   FXPT     ?
     posY   FXPT     ?
-    velX   FXPT     ?
-    velY   FXPT     ?
-    accX   FXPT     ?
-    accY   FXPT     ?
-_SPRITE ENDS
+_MONSTER ENDS
 
-SPRITE TYPEDEF _SPRITE
+MONSTER TYPEDEF _MONSTER
 
 ;; User defined functions
 GameInit PROTO
