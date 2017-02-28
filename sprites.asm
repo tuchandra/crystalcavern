@@ -138,7 +138,7 @@ PKMN3 EECS205BITMAP <24, 24, 255,, offset PKMN3 + sizeof PKMN3>
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 
-ATTACK1 EECS205BITMAP <16, 16, 255,, offset ATTACK1 + sizeof ATTACK1>
+ATTK1 EECS205BITMAP <16, 16, 012h,, offset ATTK1 + sizeof ATTK1>
 	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
 	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
 	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h

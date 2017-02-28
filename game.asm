@@ -32,6 +32,7 @@ includelib \masm32\lib\masm32.lib
 
 player SPRITE< >
 enemy SPRITE< >
+currAttack SPRITE< > 
 
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
@@ -356,11 +357,16 @@ RenderSprite ENDP
 
 GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Seed random numbers
+    ;; Assorted things
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; Seed random numbers
         ;; {edx, eax} <- internal cycle counter -- works as seed
         rdtsc
         invoke nseed, eax
+
+        ;; Initialize attack sprite, set as inactive
+        mov currAttack.bitmap, OFFSET ATTK1
+        mov currAttack.active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
@@ -390,12 +396,13 @@ GameInit PROC
         ;; Set sprite
         mov enemy.bitmap, OFFSET PKMN3
 
+
         ret
 GameInit ENDP
 
 
 GamePlay PROC
-        
+        ;; Clear screen
         INVOKE ClearScreen
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -403,8 +410,6 @@ GamePlay PROC
     ;; This might take some work.
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-;        INVOKE BasicBlit, OFFSET StarBitmap, 200, 200
-
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render sprites
@@ -412,6 +417,14 @@ GamePlay PROC
     
         INVOKE RenderSprite, enemy
         INVOKE RenderSprite, player
+
+        ;; Only render attack if active
+        cmp currAttack.active, 1
+        jne GamePlay_no_render_attack
+        
+        INVOKE RenderSprite, currAttack
+
+    GamePlay_no_render_attack:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Move player -- arrow key controls
@@ -466,8 +479,25 @@ GamePlay PROC
         cmp eax, VK_SPACE
         jne GamePlay_not_space
 
-        ;; Attack
+        ;; Initialize attack sprite
+        mov currAttack.bitmap, OFFSET ATTK1
+        mov currAttack.active, 1
 
+        ;; Set attack position to current player
+        mov eax, player.posX
+        mov currAttack.posX, eax
+
+        mov eax, player.posY
+        mov currAttack.posY, eax
+
+        ;; Set attack velocity
+        mov eax, 1
+        sal eax, 16
+        mov currAttack.velX, eax
+
+        mov eax, 1
+        sal eax, 16
+        mov currAttack.velY, eax
 
     GamePlay_not_space:
 
@@ -493,13 +523,30 @@ GamePlay PROC
     GamePlay_no_collision:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Update animations
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Update currAttack position, if active
+        cmp currAttack.active, 1
+        jne GamePlay_attack_not_active
+
+        ;; Add velocity to position
+        mov eax, currAttack.velX
+        add currAttack.posX, eax
+
+        mov eax, currAttack.velY
+        add currAttack.posY, eax
+
+    GamePlay_attack_not_active:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        mov eax, player.posX
+        mov eax, currAttack.posX
         sar eax, 16
 
-        mov ebx, player.posY
+        mov ebx, currAttack.posY
         sar ebx, 16
         INVOKE PrintTwoVals, eax, ebx
 
