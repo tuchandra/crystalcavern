@@ -32,7 +32,7 @@ EXTERNDEF KeyUp:DWORD
 EXTERNDEF KeyDown:DWORD
 EXTERNDEF KeyPress:DWORD
 
-;; Pokemon sprites
+;; Sprites
 EXTERNDEF PKMN1:EECS205BITMAP
 EXTERNDEF PKMN2:EECS205BITMAP
 EXTERNDEF PKMN3:EECS205BITMAP
@@ -54,10 +54,10 @@ GRIDY = 18 + 1
 ;; TODO health, etc.
 _SPRITE STRUCT
     bitmap      DWORD   ?
-    active      BYTE   ?
+    active      BYTE   1
     posX        FXPT    ?
     posY        FXPT    ?
-    rotation    FXPT    ?
+    rotation    FXPT    0
     velX        FXPT    ?
     velY        FXPT    ?
 _SPRITE ENDS

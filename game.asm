@@ -34,6 +34,8 @@ player SPRITE< >
 enemy SPRITE< >
 currAttack SPRITE< > 
 
+;; Rotation constants
+
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
 no_intersect_str BYTE "do not intersect :(", 0
@@ -349,7 +351,7 @@ RenderSprite PROC USES ebx ecx sprite:SPRITE
     sar ecx, 16
 
     ;; Render sprite
-    invoke BasicBlit, sprite.bitmap, ebx, ecx
+    invoke RotateBlit, sprite.bitmap, ebx, ecx, sprite.rotation
 
     ret
 RenderSprite ENDP
@@ -436,37 +438,45 @@ GamePlay PROC
         cmp eax, VK_UP
         jne GamePlay_not_up
 
-        ;; Move player one space up
+        ;; Move player one space up, face up
         mov ebx, 24
         sal ebx, 16
         sub player.posY, ebx
+
+        mov player.rotation, PI_HALF
 
     GamePlay_not_up:
         ;; Check if down arrow was pressed
         cmp eax, VK_DOWN
         jne GamePlay_not_down
 
-        ;; Move player one space down
+        ;; Move player one space down, face down
         mov ebx, 24
         sal ebx, 16
         add player.posY, ebx
+
+        mov player.rotation, PI + PI_HALF
 
     GamePlay_not_down:
         ;; Check if left arrow was pressed
         cmp eax, VK_LEFT
         jne GamePlay_not_left
 
-        ;; Move player one space left
+        ;; Move player one space left, face left
         mov ebx, 24
         sal ebx, 16
         sub player.posX, ebx
+
+        mov player.rotation, 0
 
     GamePlay_not_left:
         ;; Check if right arrow was pressed
         cmp eax, VK_RIGHT
         jne GamePlay_not_right
 
-        ;; Move player one space right
+        mov player.rotation, PI
+
+        ;; Move player one space right, face right
         mov ebx, 24
         sal ebx, 16
         add player.posX, ebx
@@ -490,14 +500,40 @@ GamePlay PROC
         mov eax, player.posY
         mov currAttack.posY, eax
 
-        ;; Set attack velocity
-        mov eax, 1
-        sal eax, 16
-        mov currAttack.velX, eax
+        ;; Initialize attack velocity (this will be in some direction) 
+        mov ebx, 1
+        sal ebx, 16
 
-        mov eax, 1
-        sal eax, 16
-        mov currAttack.velY, eax
+        ;; Set attack velocity in direction of current player
+        mov eax, player.rotation
+        cmp eax, 0
+        jne GamePlay_rotation_not_zero
+
+        neg ebx
+        mov currAttack.velX, ebx
+        mov currAttack.velY, 0
+
+    GamePlay_rotation_not_zero:
+        cmp eax, PI_HALF
+        jne GamePlay_rotation_not_half
+
+        neg ebx
+        mov currAttack.velX, 0
+        mov currAttack.velY, ebx
+
+    GamePlay_rotation_not_half:
+        cmp eax, PI
+        jne GamePlay_rotation_not_pi
+
+        mov currAttack.velX, ebx
+        mov currAttack.velY, 0
+
+    GamePlay_rotation_not_pi:
+        cmp eax, PI_HALF + PI
+        jne GamePlay_not_space
+
+        mov currAttack.velX, 0
+        mov currAttack.velY, ebx
 
     GamePlay_not_space:
 
@@ -508,7 +544,7 @@ GamePlay PROC
         ;; Compare enemy and player
         INVOKE CheckIntersectSprite, enemy, player
         cmp eax, 1
-        jne GamePlay_no_collision
+        jne GamePlay_no_collision_enemy_player
 
         ;; Otherwise, there was a collision
         ;; Put player elsewhere
@@ -519,6 +555,28 @@ GamePlay PROC
         INVOKE nrandom, GRIDY
         INVOKE GridToFixed, eax
         mov player.posY, eax
+
+    GamePlay_no_collision_enemy_player:
+
+        ;; Compare active attack and enemy
+        cmp currAttack.active, 1
+        jne GamePlay_no_collision
+
+        INVOKE CheckIntersectSprite, enemy, currAttack
+        cmp eax, 1
+        jne GamePlay_no_collision
+
+        ;; Knockback enemy
+        mov eax, currAttack.velX
+        sal eax, 4
+        add enemy.posX, eax
+
+        mov ebx, currAttack.velY
+        sal ebx, 4
+        add enemy.posY, ebx
+
+        ;; Inactivate attack
+        mov currAttack.active, 0
 
     GamePlay_no_collision:
 
