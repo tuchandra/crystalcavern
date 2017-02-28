@@ -30,8 +30,8 @@ includelib \masm32\lib\masm32.lib
 
 .DATA
 
-player MONSTER< >
-enemy MONSTER< >
+player SPRITE< >
+enemy SPRITE< >
 
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
@@ -300,15 +300,15 @@ CheckIntersect ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Collision detection for two monsters
+;; Collision detection for two sprites
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-CheckIntersectMonster PROC one:MONSTER, two:MONSTER
+CheckIntersectSprite PROC one:SPRITE, two:SPRITE
     
     LOCAL oneXD:DWORD, oneYD:DWORD, twoXD:DWORD, twoYD:DWORD
     
-    ;; Get monster positions and convert from fixed point
+    ;; Get sprite positions and convert from fixed point
     mov eax, one.posX
     mov oneXD, eax
     sar oneXD, 16
@@ -326,32 +326,32 @@ CheckIntersectMonster PROC one:MONSTER, two:MONSTER
     sar twoYD, 16
 
     ;; Call the normal CheckIntersect
-    INVOKE CheckIntersect, oneXD, oneYD, one.sprite, twoXD, twoYD, two.sprite
+    INVOKE CheckIntersect, oneXD, oneYD, one.bitmap, twoXD, twoYD, two.bitmap
 
     ;; Result is already in eax
     ret
-CheckIntersectMonster ENDP
+CheckIntersectSprite ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Render monsters on the screen
+;; Render sprites on the screen
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RenderMonster PROC USES ebx ecx monster:MONSTER
+RenderSprite PROC USES ebx ecx sprite:SPRITE
     ;; Coordinates are in fixed point
-    mov ebx, monster.posX
+    mov ebx, sprite.posX
     sar ebx, 16
 
-    mov ecx, monster.posY
+    mov ecx, sprite.posY
     sar ecx, 16
 
     ;; Render sprite
-    invoke BasicBlit, monster.sprite, ebx, ecx
+    invoke BasicBlit, sprite.bitmap, ebx, ecx
 
     ret
-RenderMonster ENDP
+RenderSprite ENDP
 
 
 GameInit PROC
@@ -375,7 +375,7 @@ GameInit PROC
         mov player.posY, eax
 
         ;; Set sprite
-        mov player.sprite, OFFSET PKMN2
+        mov player.bitmap, OFFSET PKMN2
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemy
@@ -388,7 +388,7 @@ GameInit PROC
         mov enemy.posY, eax
 
         ;; Set sprite
-        mov enemy.sprite, OFFSET PKMN3
+        mov enemy.bitmap, OFFSET PKMN3
 
         ret
 GameInit ENDP
@@ -407,16 +407,11 @@ GamePlay PROC
 
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render enemies
+    ;; Render sprites
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        INVOKE RenderMonster, enemy
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render player
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        INVOKE RenderMonster, player
+        INVOKE RenderSprite, enemy
+        INVOKE RenderSprite, player
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Move player -- arrow key controls
@@ -466,11 +461,22 @@ GamePlay PROC
     GamePlay_not_right:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Attack -- spacebar control
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        cmp eax, VK_SPACE
+        jne GamePlay_not_space
+
+        ;; Attack
+
+
+    GamePlay_not_space:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Compare enemy and player
-        INVOKE CheckIntersectMonster, enemy, player
+        INVOKE CheckIntersectSprite, enemy, player
         cmp eax, 1
         jne GamePlay_no_collision
 

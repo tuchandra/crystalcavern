@@ -41,20 +41,23 @@ EXTERNDEF PKMN3:EECS205BITMAP
 FXPT TYPEDEF SDWORD
 
 ;; Grid size (number of squares, +1 for the exclusive random upper bound)
-GRIDX = 26 + 1
+GRIDX = 25 + 1
 GRIDY = 18 + 1
 
 ;; Definition for MONSTER (Pokemon wandering on map)
-;; sprite: DWORD pointer to EECS205BITMAP
-;; (posX, posY) - FXPT coordinates
-;; health, etc.
-_MONSTER STRUCT
-    sprite DWORD    ?
-    posX   FXPT     ?
-    posY   FXPT     ?
-_MONSTER ENDS
+;; bitmap: DWORD pointer to EECS205BITMAP
+;; (posX, posY) - FXPT position coordinates
+;; (velX, velY) - FXPT velocity
+;; TODO health, etc.
+_SPRITE STRUCT
+    bitmap  DWORD   ?
+    posX    FXPT    ?
+    posY    FXPT    ?
+    velX    FXPT    ?
+    velY    FXPT    ?
+_SPRITE ENDS
 
-MONSTER TYPEDEF _MONSTER
+SPRITE TYPEDEF _SPRITE
 
 ;; User defined functions
 GameInit PROTO
