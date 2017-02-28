@@ -36,7 +36,12 @@ EXTERNDEF KeyPress:DWORD
 EXTERNDEF PKMN1:EECS205BITMAP
 EXTERNDEF PKMN2:EECS205BITMAP
 EXTERNDEF PKMN3:EECS205BITMAP
+
 EXTERNDEF ATTK1:EECS205BITMAP
+
+EXTERNDEF BOX1:EECS205BITMAP
+EXTERNDEF BOX2:EECS205BITMAP
+EXTERNDEF BOX3:EECS205BITMAP
 
 ;; Type definitions
 FXPT TYPEDEF SDWORD
@@ -48,13 +53,15 @@ GRIDY = 18 + 1
 ;; Definition for MONSTER (Pokemon wandering on map)
 ;; bitmap       DWORD pointer to EECS205BITMAP
 ;; active       BYTE, but 0 or 1 for whether should be rendered
+;; disappear    DWORD for frames until it disappears (-1 = never)
 ;; (posX, posY) FXPT position coordinates
 ;; rotation     FXPT rotation angle
 ;; (velX, velY) FXPT velocity
 ;; TODO health, etc.
 _SPRITE STRUCT
     bitmap      DWORD   ?
-    active      BYTE    1
+    active      DWORD    1
+    disappear   DWORD   -1
     posX        FXPT    ?
     posY        FXPT    ?
     rotation    FXPT    0

@@ -33,8 +33,7 @@ includelib \masm32\lib\masm32.lib
 player SPRITE< >
 enemy SPRITE< >
 currAttack SPRITE< >
-
-;; Rotation constants
+item1 SPRITE< >
 
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
@@ -371,6 +370,22 @@ GameInit PROC
         mov currAttack.active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize items
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; Set as active, set disappear time
+        mov item1.bitmap, OFFSET BOX1
+        mov item1.disappear, 150
+
+        ;; Set position
+        INVOKE nrandom, GRIDX
+        INVOKE GridToFixed, eax
+        mov item1.posX, eax
+
+        INVOKE nrandom, GRIDY
+        INVOKE GridToFixed, eax
+        mov item1.posY, eax
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
@@ -412,6 +427,21 @@ GamePlay PROC
     ;; This might take some work.
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Render active items
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        
+        cmp item1.disappear, 0
+        jng GamePlay_item_not_active
+
+        ;; Make it disappear soon
+        dec item1.disappear
+        INVOKE RenderSprite, item1
+
+    GamePlay_item_not_active:
+        ;; Make sure item is inactive
+        mov item1.active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render sprites
@@ -601,12 +631,7 @@ GamePlay PROC
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        mov eax, currAttack.posX
-        sar eax, 16
-
-        mov ebx, currAttack.posY
-        sar ebx, 16
-        INVOKE PrintTwoVals, eax, ebx
+        INVOKE PrintTwoVals, item1.active, item1.disappear
 
 
 
