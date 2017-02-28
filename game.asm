@@ -333,6 +333,27 @@ CheckIntersectMonster PROC one:MONSTER, two:MONSTER
 CheckIntersectMonster ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render monsters on the screen
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RenderMonster PROC USES ebx ecx monster:MONSTER
+    ;; Coordinates are in fixed point
+    mov ebx, monster.posX
+    sar ebx, 16
+
+    mov ecx, monster.posY
+    sar ecx, 16
+
+    ;; Render sprite
+    invoke BasicBlit, monster.sprite, ebx, ecx
+
+    ret
+RenderMonster ENDP
+
+
 GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Seed random numbers
@@ -389,29 +410,13 @@ GamePlay PROC
     ;; Render enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        ;; Convert positions out of fixed point
-        mov ebx, enemy.posX
-        sar ebx, 16
-
-        mov ecx, enemy.posY
-        sar ecx, 16
-
-        ;; Render enemy sprite
-        INVOKE BasicBlit, enemy.sprite, ebx, ecx
+        INVOKE RenderMonster, enemy
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; Convert positions out of fixed point
-        mov ebx, player.posX
-        sar ebx, 16
-
-        mov ecx, player.posY
-        sar ecx, 16
-
-        ;; Render player sprite
-        INVOKE BasicBlit, player.sprite, ebx, ecx
+        INVOKE RenderMonster, player
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Move player -- arrow key controls
