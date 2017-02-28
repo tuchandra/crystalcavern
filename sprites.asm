@@ -23,7 +23,7 @@ includelib \masm32\lib\user32.lib
 
 .DATA
 
-PKMN1 EECS205BITMAP <24, 24, 0ffh, , offset PKMN1 + sizeof PKMN1>
+PKMN1 EECS205BITMAP <24, 24, 255, , offset PKMN1 + sizeof PKMN1>
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
@@ -137,6 +137,24 @@ PKMN3 EECS205BITMAP <24, 24, 255,, offset PKMN3 + sizeof PKMN3>
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
+
+ATTACK1 EECS205BITMAP <16, 16, 255,, offset ATTACK1 + sizeof ATTACK1>
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,0c4h,0c4h,0c4h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,0c4h,0c4h,0c4h,0c4h,0f1h,0c4h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,0c4h,0f1h,0f1h,0c4h,0c4h,0f1h,0f1h,0c4h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,0c4h,0f1h,0fch,0c4h,012h,012h,0fch,0c4h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,0c4h,0fch,0ffh,0c4h,012h,0fch,0f1h,0c4h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,0c4h,0f1h,0fch,0c4h,012h,0c4h,0c4h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,0c4h,0f1h,0f1h,0c4h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,0c4h,0c4h,0c4h,0c4h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
+	BYTE 012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h,012h
 
 
 
