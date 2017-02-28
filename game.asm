@@ -34,6 +34,7 @@ player SPRITE< >
 enemy SPRITE< >
 currAttack SPRITE< >
 item1 SPRITE< >
+level SPRITE< >
 
 ;; Testing strings
 str_item_pickup BYTE "You obtained an item!", 0
@@ -450,6 +451,20 @@ GameInit PROC
         mov currAttack.active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize level
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;; Level is 10 x 7 spaces
+        mov level.bitmap, OFFSET LEVEL1
+
+        INVOKE GridToFixed, 8
+        mov level.posX, eax
+
+        INVOKE GridToFixed, 8
+        mov level.posY, eax
+
+        ;; Do things?
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize items
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set as active, set disappear time
@@ -469,12 +484,12 @@ GameInit PROC
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
-        INVOKE nrandom, GRIDX
-        INVOKE GridToFixed, eax
+        ;INVOKE nrandom, GRIDX
+        INVOKE GridToFixed, 8
         mov player.posX, eax
 
-        INVOKE nrandom, GRIDY
-        INVOKE GridToFixed, eax
+        ;INVOKE nrandom, GRIDY
+        INVOKE GridToFixed, 8
         mov player.posY, eax
 
         ;; Set sprite and direction
@@ -500,7 +515,6 @@ GameInit PROC
         ;; Set sprite
         mov enemy.bitmap, OFFSET PKMN3
 
-
         ret
 GameInit ENDP
 
@@ -511,9 +525,9 @@ GamePlay PROC
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render background
-    ;; This might take some work.
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
+        
+        INVOKE RenderSprite, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render active items
@@ -558,7 +572,8 @@ GamePlay PROC
         ;; Move player one space up, face up
         mov ebx, 24
         sal ebx, 16
-        sub player.posY, ebx
+        ;sub player.posY, ebx
+        add level.posY, ebx
 
         mov eax, player.bitmap_up
         mov player.bitmap, eax
@@ -572,7 +587,8 @@ GamePlay PROC
         ;; Move player one space down, face down
         mov ebx, 24
         sal ebx, 16
-        add player.posY, ebx
+        ;add player.posY, ebx
+        sub level.posY, ebx
 
         mov eax, player.bitmap_down
         mov player.bitmap, eax
@@ -586,7 +602,8 @@ GamePlay PROC
         ;; Move player one space left, face left
         mov ebx, 24
         sal ebx, 16
-        sub player.posX, ebx
+        ;sub player.posX, ebx
+        add level.posX, ebx
 
         mov eax, player.bitmap_left
         mov player.bitmap, eax
@@ -600,7 +617,8 @@ GamePlay PROC
         ;; Move player one space right, face right
         mov ebx, 24
         sal ebx, 16
-        add player.posX, ebx
+        ;add player.posX, ebx
+        sub level.posX, ebx
 
         mov eax, player.bitmap_right
         mov player.bitmap, eax

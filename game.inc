@@ -55,7 +55,7 @@ FXPT TYPEDEF SDWORD
 
 ;; Grid size (number of squares, +1 for the exclusive random upper bound)
 GRIDX = 25 + 1
-GRIDY = 18 + 1
+GRIDY = 17 + 1
 
 ;; Definition for SPRITE (any object on the map)
 ;; TODO health, etc.
