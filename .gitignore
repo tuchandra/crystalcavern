@@ -1,4 +1,10 @@
+# Don't include obj files, but do include the library code
 *.obj
 !libgame.obj
+
+# Built game, assignment file
 *.exe
 *.pdf
+
+# Sprites
+sprites/
