@@ -32,7 +32,7 @@ includelib \masm32\lib\masm32.lib
 
 player SPRITE< >
 enemy SPRITE< >
-currAttack SPRITE< > 
+currAttack SPRITE< >
 
 ;; Rotation constants
 
@@ -581,7 +581,7 @@ GamePlay PROC
     GamePlay_no_collision:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Update animations
+    ;; Update sprites
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Update currAttack position, if active

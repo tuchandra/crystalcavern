@@ -54,7 +54,7 @@ GRIDY = 18 + 1
 ;; TODO health, etc.
 _SPRITE STRUCT
     bitmap      DWORD   ?
-    active      BYTE   1
+    active      BYTE    1
     posX        FXPT    ?
     posY        FXPT    ?
     rotation    FXPT    0
