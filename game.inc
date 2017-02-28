@@ -57,29 +57,34 @@ FXPT TYPEDEF SDWORD
 GRIDX = 25 + 1
 GRIDY = 18 + 1
 
-;; Definition for MONSTER (Pokemon wandering on map)
-;; bitmap       DWORD pointer to the current bitmap
-;; bitmap_(dir) DWORD pointer to an EECS205BITMAP for each direction (up, down, left, right)
-;; active       DWORD, but 0 or 1 for whether should be rendered
-;; disappear    DWORD for frames until it disappears (-1 = never)
-;; (posX, posY) FXPT position coordinates
-;; direction    DWORD, but 0 (up), 1 (down), 2 (left), 3 (right)
-;; (velX, velY) FXPT velocity
+;; Definition for SPRITE (any object on the map)
 ;; TODO health, etc.
 _SPRITE STRUCT
+    ;; bitmap: DWORD pointer to current bitmap
+    ;; direction: DWORD, but restricted to 0 (up), 1 (down), 2 (left), 3 (right)
     bitmap          DWORD   ?
+    direction       DWORD   ?
+
+    ;; bitmap_dir: DWORD pointer to the bitmaps for sprites facing each direction
     bitmap_up       DWORD   ?
     bitmap_down     DWORD   ?
     bitmap_left     DWORD   ?
     bitmap_right    DWORD   ?
-    direction       DWORD   ?
 
+    ;; active: DWORD, but restricted to 0 (inactive) or 1 (active)
+    ;;         controls whether or not sprite is handled in game logic
+    ;; disappear: DWORD, number of frames until sprite disappears (-1 = never)
     active          DWORD    1
     disappear       DWORD   -1
     
+    ;; (posX, posY): fixed point position coordinates
     posX            FXPT    ?
     posY            FXPT    ?
+
+    ;; rotation: fixed point rotation angle
     rotation        FXPT    0
+
+    ;; (velX, velY): fixed point velocity vector
     velX            FXPT    ?
     velY            FXPT    ?
 _SPRITE ENDS
