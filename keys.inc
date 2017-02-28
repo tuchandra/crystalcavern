@@ -1,6 +1,5 @@
-;;
 ;; keys.inc -- These are virtual key codes to
-;; captuer any keystrokes you desire
+;; capture any keystrokes you desire
 
 VK_BACK                              equ 8h
 VK_CANCEL                            equ 3h
