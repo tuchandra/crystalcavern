@@ -23,6 +23,8 @@ includelib \masm32\lib\user32.lib
 
 .DATA
 
+bird SPRITE< >
+
 ;; Testing strings
 intersect_str BYTE "intersect!", 0
 no_intersect_str BYTE "do not intersect :(", 0
@@ -30,7 +32,7 @@ never_str BYTE "you should never reach here", 0
 zero_str BYTE "returned 0", 0
 one_str BYTE "returned 1", 0
 
-;; Format strings
+;; Format strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
 outStr_eax BYTE 256 DUP(0)
 
@@ -43,11 +45,14 @@ outStr_ecx BYTE 256 DUP(0)
 fmtStr_edx BYTE "edx: %d", 0
 outStr_edx BYTE 256 DUP(0)
 
+;; Format strings for PrintTwoVals
 fmtStr_first BYTE "first: %d", 0
 outStr_first BYTE 256 DUP(0)
 
 fmtStr_second BYTE "second: %d", 0
 outStr_second BYTE 256 DUP(0)
+
+
 
 .CODE
 
@@ -213,7 +218,7 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         ;; oneBottom = oneTop + oneBitmap.dwHeight
         sal ecx, 1  ; ecx <- dwHeight (ecx had dwHeight / 2)
         add edx, ecx
-        mov oneBottom, ecx
+        mov oneBottom, edx
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Compute bounding box for second bitmap
@@ -233,12 +238,6 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         add edx, ecx
         mov twoRight, edx
 
-        ;mov ecx, (EECS205BITMAP PTR [edi]).dwWidth
-        ;sar ecx, 1
-        ;mov edx, twoX
-        ;add edx, ecx
-        ;mov twoRight, edx
-
         ;; twoTop = twoY - twoBitmap.dwHeight / 2
         mov ecx, (EECS205BITMAP PTR [edi]).dwHeight
         sar ecx, 1
@@ -249,7 +248,7 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
         ;; twoBottom = twoTop + twoBitmap.dwHeight
         sal ecx, 1  ; ecx <- dwHeight (ecx had dwHeight / 2)
         add edx, ecx
-        mov twoBottom, ecx
+        mov twoBottom, edx
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Compare bounding boxes
@@ -291,10 +290,27 @@ CheckIntersect PROC USES ebx ecx edx edi oneX:DWORD, oneY:DWORD, oneBitmap:PTR E
 CheckIntersect ENDP
 
 
-GameInit PROC USES edi eax
-        ;; Clear screen, just in case
-        INVOKE ClearScreen
+GameInit PROC
+        ;; Initailize bird at (100, 100)
+        mov eax, 100
+        sal eax, 16
 
+        mov bird.posX, eax
+        mov bird.posY, eax
+
+        ;; Initialize bird velocity
+        mov eax, 1
+        sal eax, 16
+
+        mov bird.velX, eax
+        mov bird.velY, 0
+
+        ;; Initialize bird acceleration
+        mov eax, 1
+        sal eax, 16
+
+        mov bird.accX, 0
+        mov bird.accY, eax
 
         ret
 GameInit ENDP
@@ -302,7 +318,77 @@ GameInit ENDP
 
 GamePlay PROC
         
-        INVOKE CheckIntersect, 100, 100, OFFSET StarBitmap, 120, 120, OFFSET StarBitmap
+        INVOKE ClearScreen
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Draw fixed star
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+        INVOKE BasicBlit, OFFSET StarBitmap, 200, 200
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Draw bird
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov eax, bird.accX
+        add bird.velX, eax
+
+        mov eax, bird.accY
+        add bird.velY, eax
+
+        ;; Move bird
+        mov eax, bird.velX
+        add bird.posX, eax
+
+        mov eax, bird.velY
+        add bird.posY, eax
+
+        ;; Convert positions out of fixed point
+        mov ebx, bird.posX
+        sar ebx, 16
+
+        mov ecx, bird.posY
+        sar ecx, 16
+
+        INVOKE BasicBlit, OFFSET StarBitmap, ebx, ecx
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Collision detection
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Leave fixed point
+        mov eax, bird.posX
+        sar eax, 16
+
+        mov ebx, bird.posY
+        sar ebx, 16
+
+        INVOKE CheckIntersect, 200, 200, OFFSET StarBitmap, eax, ebx, OFFSET StarBitmap
+        cmp eax, 1
+        jne GamePlay_no_collision
+
+        ;; Make bird fly backwards
+        mov eax, -2
+        sal eax, 16
+        mov bird.velX, eax
+
+    GamePlay_no_collision:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Check if space is pressed
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov eax, KeyPress
+        cmp eax, VK_SPACE
+        jne GamePlay_Space_not_pressed
+
+        ;; Set velocity
+        mov eax, -8
+        sal eax, 16
+        mov bird.velY, eax
+
+    GamePlay_Space_not_pressed:
 
 	ret
 GamePlay ENDP
