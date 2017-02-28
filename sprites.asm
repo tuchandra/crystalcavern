@@ -23,6 +23,10 @@ includelib \masm32\lib\user32.lib
 
 .DATA
 
+;; Single pixel bitmap for mouse
+MOUSE EECS205BITMAP <1, 1, 255, , offset MOUSE + sizeof MOUSE>
+	BYTE 0ffh
+
 PKMN1 EECS205BITMAP <24, 24, 255, , offset PKMN1 + sizeof PKMN1>
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh
 	BYTE 0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh,0ffh

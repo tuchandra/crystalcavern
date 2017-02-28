@@ -36,11 +36,7 @@ currAttack SPRITE< >
 item1 SPRITE< >
 
 ;; Testing strings
-intersect_str BYTE "intersect!", 0
-no_intersect_str BYTE "do not intersect :(", 0
-never_str BYTE "you should never reach here", 0
-zero_str BYTE "returned 0", 0
-one_str BYTE "returned 1", 0
+str_item_pickup BYTE "You obtained an item!", 0
 
 ;; Format strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
@@ -106,7 +102,7 @@ ClearScreen ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-PrintRegs PROC USES eax ebx ecx edx esi edi
+PrintRegs PROC USES eax ebx ecx edx
         ;; print eax
         push eax
         push OFFSET fmtStr_eax
@@ -150,7 +146,7 @@ PrintRegs ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-PrintTwoVals PROC USES eax ebx ecx edx esi edi first:DWORD, second:DWORD
+PrintTwoVals PROC first:DWORD, second:DWORD
         ;; print first val
         push first
         push OFFSET fmtStr_first
@@ -334,6 +330,90 @@ CheckIntersectSprite PROC one:SPRITE, two:SPRITE
     ret
 CheckIntersectSprite ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Collision detection for mouse and sprite
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+CheckIntersectMouse PROC USES ebx ecx edx edi one:SPRITE
+
+        LOCAL oneXD:DWORD, oneYD:DWORD
+        LOCAL oneLeft:DWORD, oneRight:DWORD, oneTop:DWORD, oneBottom:DWORD
+        
+        ;; Get sprite positions and convert from fixed point
+        mov eax, one.posX
+        sar eax, 16
+        mov oneXD, eax
+
+        mov eax, one.posY
+        sar eax, 16
+        mov oneYD, eax
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Compute bounding box for sprite
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov edi, one.bitmap
+        
+        ;; oneLeft = one.X - one.bitmap.dwWidth / 2
+        mov ecx, (EECS205BITMAP PTR [edi]).dwWidth
+        sar ecx, 1
+        mov edx, oneXD
+        sub edx, ecx
+        mov oneLeft, edx
+
+        ;; oneRight = oneLeft + oneBitmap.dwWidth
+        sal ecx, 1  ; ecx <- dwWidth (ecx had dwWidth / 2)
+        add edx, ecx
+        mov oneRight, edx
+
+        ;; oneTop = one.Y - one.bitmap.dwHeight / 2
+        mov ecx, (EECS205BITMAP PTR [edi]).dwHeight
+        sar ecx, 1
+        mov edx, oneYD
+        sub edx, ecx
+        mov oneTop, edx
+
+        ;; oneBottom = oneTop + oneBitmap.dwHeight
+        sal ecx, 1  ; ecx <- dwHeight (ecx had dwHeight / 2)
+        add edx, ecx
+        mov oneBottom, edx
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Check if mouse is in bounding box
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; if (MouseStatus.horiz > oneRight) return 0
+        mov eax, MouseStatus.horiz
+        cmp eax, oneRight
+        jg CheckIntersectMouse_no_overlap
+
+        ;; if (MouseStatus.horiz < oneLeft) return 0
+        mov eax, MouseStatus.horiz
+        cmp eax, oneLeft
+        jl CheckIntersectMouse_no_overlap
+
+        ;; if (MouseStatus.vert > oneBottom) return 0
+        mov eax, MouseStatus.vert
+        cmp eax, oneBottom
+        jg CheckIntersectMouse_no_overlap
+
+        ;; if (MouseStatus.vert < oneTop) return 0
+        mov eax, MouseStatus.vert
+        cmp eax, oneTop
+        jl CheckIntersectMouse_no_overlap
+
+        ;; else, they overlap
+        mov eax, 1
+        ret
+
+    CheckIntersectMouse_no_overlap:
+        ;; no overlap, return 0
+        mov eax, 0
+        ret
+
+CheckIntersectMouse ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -568,6 +648,25 @@ GamePlay PROC
     GamePlay_not_space:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Item pickup -- remove this, but need mouse response now
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; If the user left clicked the item, display message
+        cmp MouseStatus.buttons, MK_LBUTTON
+        jne GamePlay_item_not_clicked
+
+        INVOKE CheckIntersectMouse, item1
+        cmp eax, 0
+        je GamePlay_item_not_clicked
+
+        ;; Display message, make item disappear
+        INVOKE DrawStr, OFFSET str_item_pickup, 100, 100, 0ffh
+        mov item1.disappear, 0
+        mov item1.active, 0
+
+    GamePlay_item_not_clicked:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -631,7 +730,7 @@ GamePlay PROC
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        INVOKE PrintTwoVals, item1.active, item1.disappear
+        INVOKE PrintTwoVals, MouseStatus.horiz, MouseStatus.vert
 
 
 
