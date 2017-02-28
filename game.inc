@@ -40,9 +40,9 @@ EXTERNDEF PKMN3:EECS205BITMAP
 ;; Type definitions
 FXPT TYPEDEF SDWORD
 
-;; Grid size
-GRIDX = 26
-GRIDY = 20
+;; Grid size (number of squares, +1 for the exclusive random upper bound)
+GRIDX = 26 + 1
+GRIDY = 18 + 1
 
 ;; Definition for MONSTER (Pokemon wandering on map)
 ;; sprite: DWORD pointer to EECS205BITMAP

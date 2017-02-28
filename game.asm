@@ -300,37 +300,37 @@ CheckIntersect ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Collision detection with fixed point positions
+; Collision detection for two monsters
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-CheckIntersectFixed PROC oneX:FXPT, oneY:FXPT, oneBitmap:PTR EECS205BITMAP, twoX:FXPT, twoY:FXPT, twoBitmap:PTR EECS205BITMAP
-
-    ;; Convert everything from fixed point
+CheckIntersectMonster PROC one:MONSTER, two:MONSTER
+    
     LOCAL oneXD:DWORD, oneYD:DWORD, twoXD:DWORD, twoYD:DWORD
     
-    mov eax, oneX
+    ;; Get monster positions and convert from fixed point
+    mov eax, one.posX
     mov oneXD, eax
     sar oneXD, 16
 
-    mov eax, oneY
+    mov eax, one.posY
     mov oneYD, eax
     sar oneYD, 16
 
-    mov eax, twoX
+    mov eax, two.posX
     mov twoXD, eax
     sar twoXD, 16
 
-    mov eax, twoY
+    mov eax, two.posY
     mov twoYD, eax
     sar twoYD, 16
 
     ;; Call the normal CheckIntersect
-    INVOKE CheckIntersect, oneXD, oneYD, oneBitmap, twoXD, twoYD, twoBitmap
+    INVOKE CheckIntersect, oneXD, oneYD, one.sprite, twoXD, twoYD, two.sprite
 
     ;; Result is already in eax
     ret
-CheckIntersectFixed ENDP
+CheckIntersectMonster ENDP
 
 
 GameInit PROC
@@ -464,16 +464,18 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Compare enemy and player
-        INVOKE CheckIntersectFixed, enemy.posX, enemy.posY, enemy.sprite, player.posX, player.posY, player.sprite
+        INVOKE CheckIntersectMonster, enemy, player
         cmp eax, 1
         jne GamePlay_no_collision
 
         ;; Otherwise, there was a collision
         ;; Put player elsewhere
-        INVOKE GridToFixed, 12
+        INVOKE nrandom, GRIDX
+        INVOKE GridToFixed, eax
         mov player.posX, eax
 
-        INVOKE GridToFixed, 8
+        INVOKE nrandom, GRIDY
+        INVOKE GridToFixed, eax
         mov player.posY, eax
 
     GamePlay_no_collision:
