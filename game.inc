@@ -55,7 +55,9 @@ GRIDY = 17 + 1
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Bitmaps
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 EXTERNDEF MAP1:EECS205BITMAP
+EXTERNDEF MAPINFO1:BYTE
 
 EXTERNDEF PKMN1:EECS205BITMAP
 
@@ -94,9 +96,9 @@ _SPRITE STRUCT
     active          DWORD    1
     disappear       DWORD   -1
     
-    ;; (posX, posY): fixed point position coordinates
-    posX            FXPT    ?
-    posY            FXPT    ?
+    ;; (posX, posY): grid position coordinates
+    posX            DWORD    ?
+    posY            DWORD    ?
 
     ;; rotation: fixed point rotation angle
     rotation        FXPT    0

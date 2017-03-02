@@ -311,19 +311,15 @@ CheckIntersectSprite PROC one:SPRITE, two:SPRITE
     ;; Get sprite positions and convert from fixed point
     mov eax, one.posX
     mov oneXD, eax
-    sar oneXD, 16
 
     mov eax, one.posY
     mov oneYD, eax
-    sar oneYD, 16
 
     mov eax, two.posX
     mov twoXD, eax
-    sar twoXD, 16
 
     mov eax, two.posY
     mov twoYD, eax
-    sar twoYD, 16
 
     ;; Call the normal CheckIntersect
     INVOKE CheckIntersect, oneXD, oneYD, one.bitmap, twoXD, twoYD, two.bitmap
@@ -345,11 +341,9 @@ CheckIntersectMouse PROC USES ebx ecx edx edi one:SPRITE
         
         ;; Get sprite positions and convert from fixed point
         mov eax, one.posX
-        sar eax, 16
         mov oneXD, eax
 
         mov eax, one.posY
-        sar eax, 16
         mov oneYD, eax
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -424,15 +418,15 @@ CheckIntersectMouse ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 RenderSprite PROC USES ebx ecx sprite:SPRITE
-    ;; Coordinates are in fixed point
-    mov ebx, sprite.posX
-    sar ebx, 16
 
-    mov ecx, sprite.posY
-    sar ecx, 16
+    ;; Sprite positions are in grid coordinates
+    INVOKE GridToDWORD, sprite.posX
+    mov ecx, eax
 
-    ;; Render sprite
-    invoke RotateBlit, sprite.bitmap, ebx, ecx, sprite.rotation
+    INVOKE GridToDWORD, sprite.posY
+    mov edx, eax
+
+    invoke RotateBlit, sprite.bitmap, ecx, edx, sprite.rotation
 
     ret
 RenderSprite ENDP
@@ -456,9 +450,10 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         mov level.bitmap, OFFSET MAP1
+        mov level.info, OFFSET MAPINFO1
 
-        mov level.offsetX, 4
-        mov level.offsetY, 4
+        mov level.offsetX, 0
+        mov level.offsetY, 0
 
         ;; Do things?
 
@@ -469,12 +464,9 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        ;; Set position, for now at (8, 8)
-        INVOKE GridToFixed, 8
-        mov player.posX, eax
-
-        INVOKE GridToFixed, 8
-        mov player.posY, eax
+        ;; Set position
+        mov player.posX, 1
+        mov player.posY, 1
 
         ;; Set sprite and direction
         mov player.bitmap, OFFSET PKMN2_LEFT
@@ -489,7 +481,7 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+    
         ret
 GameInit ENDP
 
