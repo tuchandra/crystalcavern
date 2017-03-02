@@ -98,7 +98,10 @@ RenderLevel PROC USES edi ecx edx level:LEVEL
         ;; This means that if our bitmap has offset (x, y), its 
         ;; center will be at
         ;; screen(bitmap.dwWidth / 2 - x, bitmap.dwHeight / 2 - y)
-        ;; so we pass this to BasicBlit.
+        ;;
+        ;; Lastly, because each grid space is 24x24 pixels, we add 12
+        ;; to both the x- and y-coords to account for this, and we 
+        ;; pass this to BasicBlit.
 
         mov edi, level.bitmap
 
@@ -110,13 +113,19 @@ RenderLevel PROC USES edi ecx edx level:LEVEL
         INVOKE GridToDWORD, level.offsetX
         sub ecx, eax
 
+        ;; Add 12 to account for center of grid square
+        add ecx, 12
+
         ;; edx <- bitmap.dwHeight / 2
         mov edx, (EECS205BITMAP PTR [edi]).dwHeight
         sar edx, 1
 
-        ;; edx <- bitmap.dwHeight / 2 - offsetY
+        ;; edx <- bitmap.dwHeight / 2 - offsetY 
         INVOKE GridToDWORD, level.offsetY
         sub edx, eax
+
+        ;; Add 12 to account for center of grid square
+        add edx, 12
 
         ;; Center of bitmap is at screen(ecx, edx)
         INVOKE BasicBlit, level.bitmap, ecx, edx
