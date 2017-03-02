@@ -529,6 +529,11 @@ GamePlay PROC
         cmp eax, VK_UP
         jne GamePlay_not_up
 
+        ;; Face up
+        mov eax, player.bitmap_up
+        mov player.bitmap, eax
+        mov player.direction, 0
+
         ;; Check if player can actually move up
         ;;
         ;; These coords are relative to the screen, not level
@@ -544,14 +549,11 @@ GamePlay PROC
         ;; The tile above the player has y-coord one smaller
         dec ecx
 
-
         ;; Calculate index into byte array of map info
         mov edi, level.bitmap
         mov eax, level.sizeX
         imul eax, ecx  ; eax <- level.sizeX * (player.posY - 1)
         add eax, ebx   ; eax <- index of pixel above player
-
-        INVOKE PrintRegs
 
         ;; Access byte of interest
         mov esi, level.info
@@ -562,24 +564,49 @@ GamePlay PROC
         test dl, 1
         jz GamePlay_not_up
 
-        ;; Move player one space up, face up
+        ;; Move player one space up
         dec level.offsetY
 
-        mov eax, player.bitmap_up
-        mov player.bitmap, eax
-        mov player.direction, 0
 
     GamePlay_not_up:
         ;; Check if down arrow was pressed
         cmp eax, VK_DOWN
         jne GamePlay_not_down
 
-        ;; Move player one space down, face down
-        inc level.offsetY
-
+        ;; Face down
         mov eax, player.bitmap_down
         mov player.bitmap, eax
         mov player.direction, 1
+
+        ;; Check if player can actually move down
+        ;; See above section for explanation of this code
+        mov ebx, player.posX
+        add ebx, level.offsetX
+
+        mov ecx, player.posY
+        add ecx, level.offsetY
+
+        ;; The tile below the player has y-coord one larger
+        inc ecx
+
+        ;; Calculate index into byte array of map info
+        mov edi, level.bitmap
+        mov eax, level.sizeX
+        imul eax, ecx  ; eax <- level.sizeX * (player.posY + 1)
+        add eax, ebx   ; eax <- index of pixel below player
+
+        ;; Access byte of interest
+        mov esi, level.info
+        xor edx, edx
+        mov dl, BYTE PTR [esi + eax]
+
+        ;; Last bit is set if player can walk, clear if cannot
+        test dl, 1
+        jz GamePlay_not_down
+
+        ;; Move player one space down
+        inc level.offsetY
+
 
     GamePlay_not_down:
         ;; Check if left arrow was pressed
