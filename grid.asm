@@ -83,7 +83,7 @@ GridToFixed ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RenderLevel PROC level:LEVEL
+RenderLevel PROC USES edi ecx edx level:LEVEL
         ;; We want the top-left of the visible bitmap to render at (0, 0)
         ;; on the screen.
         ;;
@@ -119,7 +119,9 @@ RenderLevel PROC level:LEVEL
         sub edx, eax
 
         ;; Center of bitmap is at screen(ecx, edx)
-        ;INVOKE BasicBlit, level.bitmap, ecx, edx
+        INVOKE BasicBlit, level.bitmap, ecx, edx
+
+        ret
 
 RenderLevel ENDP
 
