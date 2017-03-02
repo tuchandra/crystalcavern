@@ -1,6 +1,6 @@
 ; #########################################################################
 ;
-;   levels.asm - Levels for EECS205 Assignment 4/5
+;   levels.asm - Level bitmaps for EECS205 Assignment 4/5
 ;   Tushar Chandra (tac311)
 ;
 ; #########################################################################
@@ -24,7 +24,7 @@ includelib \masm32\lib\user32.lib
 .DATA
 
 ;; First level map
-LEVEL1 EECS205BITMAP <240, 168, 255,, offset LEVEL1 + sizeof LEVEL1>
+MAP1 EECS205BITMAP <240, 168, 255,, offset MAP1 + sizeof MAP1>
     BYTE 041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h
     BYTE 041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,046h,041h,041h,041h
     BYTE 041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h
