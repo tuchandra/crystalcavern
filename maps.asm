@@ -23,6 +23,15 @@ includelib \masm32\lib\user32.lib
 
 .DATA
 
+;; First level walking information
+MAPINFO1 BYTE 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+         BYTE 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+         BYTE 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+         BYTE 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+         BYTE 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+         BYTE 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+         BYTE 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
 ;; First level map
 MAP1 EECS205BITMAP <240, 168, 255,, offset MAP1 + sizeof MAP1>
     BYTE 041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h,041h
