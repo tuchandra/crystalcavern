@@ -613,24 +613,79 @@ GamePlay PROC
         cmp eax, VK_LEFT
         jne GamePlay_not_left
 
-        ;; Move player one space left, face left
-        dec level.offsetX
-
+        ;; Face left
         mov eax, player.bitmap_left
         mov player.bitmap, eax
         mov player.direction, 2
+
+        ;; Check if player can actually move left
+        ;; See above section for explanation of this code
+        mov ebx, player.posX
+        add ebx, level.offsetX
+
+        mov ecx, player.posY
+        add ecx, level.offsetY
+
+        ;; The tile to the left of the player has x-coord one smaller
+        dec ebx
+
+        ;; Calculate index into byte array of map info
+        mov edi, level.bitmap
+        mov eax, level.sizeX
+        imul eax, ecx  ; eax <- level.sizeX * (player.posY)
+        add eax, ebx   ; eax <- index of pixel left of player
+
+        ;; Access byte of interest
+        mov esi, level.info
+        xor edx, edx
+        mov dl, BYTE PTR [esi + eax]
+
+        ;; Last bit is set if player can walk, clear if cannot
+        test dl, 1
+        jz GamePlay_not_left
+
+        ;; Move player one space left
+        dec level.offsetX
+
 
     GamePlay_not_left:
         ;; Check if right arrow was pressed
         cmp eax, VK_RIGHT
         jne GamePlay_not_right
 
-        ;; Move player one space right, face right
-        inc level.offsetX
-
+        ;; Face right
         mov eax, player.bitmap_right
         mov player.bitmap, eax
         mov player.direction, 3
+
+        ;; Check if player can actually move right
+        ;; See above section for explanation of this code
+        mov ebx, player.posX
+        add ebx, level.offsetX
+
+        mov ecx, player.posY
+        add ecx, level.offsetY
+
+        ;; The tile below the player has x-coord one larger
+        inc ebx
+
+        ;; Calculate index into byte array of map info
+        mov edi, level.bitmap
+        mov eax, level.sizeX
+        imul eax, ecx  ; eax <- level.sizeX * (player.posY)
+        add eax, ebx   ; eax <- index of pixel right of player
+
+        ;; Access byte of interest
+        mov esi, level.info
+        xor edx, edx
+        mov dl, BYTE PTR [esi + eax]
+
+        ;; Last bit is set if player can walk, clear if cannot
+        test dl, 1
+        jz GamePlay_not_right
+
+        ;; Move player one space right
+        inc level.offsetX
 
     GamePlay_not_right:
 
