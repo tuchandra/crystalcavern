@@ -455,8 +455,8 @@ GameInit PROC
         mov level.sizeX, 10
         mov level.sizeY, 7
 
-        mov level.offsetX, 0
-        mov level.offsetY, 0
+        mov level.offsetX, -5
+        mov level.offsetY, -5
 
         ;; Do things?
 
@@ -468,8 +468,8 @@ GameInit PROC
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
-        mov player.posX, 1
-        mov player.posY, 1
+        mov player.posX, 6
+        mov player.posY, 6
 
         ;; Set sprite and direction
         mov player.bitmap, OFFSET PKMN2_LEFT
