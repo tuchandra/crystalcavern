@@ -452,6 +452,9 @@ GameInit PROC
         mov level.bitmap, OFFSET MAP1
         mov level.info, OFFSET MAPINFO1
 
+        mov level.sizeX, 10
+        mov level.sizeY, 7
+
         mov level.offsetX, 0
         mov level.offsetY, 0
 
@@ -525,6 +528,39 @@ GamePlay PROC
         ;; Check if up arrow was pressed
         cmp eax, VK_UP
         jne GamePlay_not_up
+
+        ;; Check if player can actually move up
+        ;;
+        ;; These coords are relative to the screen, not level
+        ;; Because the player is at screen(posX, posY), and
+        ;; screen(0, 0) ~ bitmap(offsetX, offsetY),
+        ;; screen(posX, posY) ~ bitmap(offsetX + posX, offsetY + posY)
+        mov ebx, player.posX
+        add ebx, level.offsetX
+
+        mov ecx, player.posY
+        add ecx, level.offsetY
+
+        ;; The tile above the player has y-coord one smaller
+        dec ecx
+
+
+        ;; Calculate index into byte array of map info
+        mov edi, level.bitmap
+        mov eax, level.sizeX
+        imul eax, ecx  ; eax <- level.sizeX * (player.posY - 1)
+        add eax, ebx   ; eax <- index of pixel above player
+
+        INVOKE PrintRegs
+
+        ;; Access byte of interest
+        mov esi, level.info
+        xor edx, edx
+        mov dl, BYTE PTR [esi + eax]
+
+        ;; Last bit is set if player can walk, clear if cannot
+        test dl, 1
+        jz GamePlay_not_up
 
         ;; Move player one space up, face up
         dec level.offsetY
@@ -651,7 +687,7 @@ GamePlay PROC
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        INVOKE PrintTwoVals, MouseStatus.horiz, MouseStatus.vert
+        ;INVOKE PrintTwoVals, MouseStatus.horiz, MouseStatus.vert
 
 
 
