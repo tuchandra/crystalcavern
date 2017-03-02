@@ -34,7 +34,8 @@ player SPRITE< >
 enemy SPRITE< >
 currAttack SPRITE< >
 item1 SPRITE< >
-level SPRITE< >
+
+level LEVEL< >
 
 ;; Testing strings
 str_item_pickup BYTE "You obtained an item!", 0
@@ -453,42 +454,25 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize level
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        ;; Level is 10 x 7 spaces
-        mov level.bitmap, OFFSET LEVEL1
 
-        INVOKE GridToFixed, 8
-        mov level.posX, eax
+        mov level.bitmap, OFFSET MAP1
 
-        INVOKE GridToFixed, 8
-        mov level.posY, eax
+        mov level.offsetX, 4
+        mov level.offsetY, 4
 
         ;; Do things?
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize items
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        ;; Set as active, set disappear time
-        mov item1.bitmap, OFFSET BOX1
-        mov item1.disappear, 150
-
-        ;; Set position
-        INVOKE nrandom, GRIDX
-        INVOKE GridToFixed, eax
-        mov item1.posX, eax
-
-        INVOKE nrandom, GRIDY
-        INVOKE GridToFixed, eax
-        mov item1.posY, eax
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        ;; Set position
-        ;INVOKE nrandom, GRIDX
+        ;; Set position, for now at (8, 8)
         INVOKE GridToFixed, 8
         mov player.posX, eax
 
-        ;INVOKE nrandom, GRIDY
         INVOKE GridToFixed, 8
         mov player.posY, eax
 
@@ -503,17 +487,8 @@ GameInit PROC
         mov player.bitmap_right, OFFSET PKMN2_RIGHT
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Initialize enemy
+    ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        ;; Set position
-        INVOKE GridToFixed, 10
-        mov enemy.posX, eax
-
-        INVOKE GridToFixed, 10
-        mov enemy.posY, eax
-
-        ;; Set sprite
-        mov enemy.bitmap, OFFSET PKMN3
 
         ret
 GameInit ENDP
@@ -527,28 +502,18 @@ GamePlay PROC
     ;; Render background
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         
-        INVOKE RenderSprite, level
+        INVOKE RenderLevel, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render active items
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         
-        cmp item1.disappear, 0
-        jng GamePlay_item_not_active
-
-        ;; Make it disappear soon
-        dec item1.disappear
-        INVOKE RenderSprite, item1
-
-    GamePlay_item_not_active:
-        ;; Make sure item is inactive
-        mov item1.active, 0
-
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render sprites
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        INVOKE RenderSprite, enemy
+        ;; Render enemies
+
         INVOKE RenderSprite, player
 
         ;; Only render attack if active
@@ -570,10 +535,7 @@ GamePlay PROC
         jne GamePlay_not_up
 
         ;; Move player one space up, face up
-        mov ebx, 24
-        sal ebx, 16
-        ;sub player.posY, ebx
-        add level.posY, ebx
+        dec level.offsetY
 
         mov eax, player.bitmap_up
         mov player.bitmap, eax
@@ -585,10 +547,7 @@ GamePlay PROC
         jne GamePlay_not_down
 
         ;; Move player one space down, face down
-        mov ebx, 24
-        sal ebx, 16
-        ;add player.posY, ebx
-        sub level.posY, ebx
+        inc level.offsetY
 
         mov eax, player.bitmap_down
         mov player.bitmap, eax
@@ -600,10 +559,7 @@ GamePlay PROC
         jne GamePlay_not_left
 
         ;; Move player one space left, face left
-        mov ebx, 24
-        sal ebx, 16
-        ;sub player.posX, ebx
-        add level.posX, ebx
+        dec level.offsetX
 
         mov eax, player.bitmap_left
         mov player.bitmap, eax
@@ -615,10 +571,7 @@ GamePlay PROC
         jne GamePlay_not_right
 
         ;; Move player one space right, face right
-        mov ebx, 24
-        sal ebx, 16
-        ;add player.posX, ebx
-        sub level.posX, ebx
+        inc level.offsetX
 
         mov eax, player.bitmap_right
         mov player.bitmap, eax
@@ -682,66 +635,8 @@ GamePlay PROC
     GamePlay_not_space:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Item pickup -- remove this, but need mouse response now
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        ;; If the user left clicked the item, display message
-        cmp MouseStatus.buttons, MK_LBUTTON
-        jne GamePlay_item_not_clicked
-
-        INVOKE CheckIntersectMouse, item1
-        cmp eax, 0
-        je GamePlay_item_not_clicked
-
-        ;; Display message, make item disappear
-        INVOKE DrawStr, OFFSET str_item_pickup, 100, 100, 0ffh
-        mov item1.disappear, 0
-        mov item1.active, 0
-
-    GamePlay_item_not_clicked:
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        ;; Compare enemy and player
-        INVOKE CheckIntersectSprite, enemy, player
-        cmp eax, 1
-        jne GamePlay_no_collision_enemy_player
-
-        ;; Otherwise, there was a collision
-        ;; Put player elsewhere
-        INVOKE nrandom, GRIDX
-        INVOKE GridToFixed, eax
-        mov player.posX, eax
-
-        INVOKE nrandom, GRIDY
-        INVOKE GridToFixed, eax
-        mov player.posY, eax
-
-    GamePlay_no_collision_enemy_player:
-
-        ;; Compare active attack and enemy
-        cmp currAttack.active, 1
-        jne GamePlay_no_collision
-
-        INVOKE CheckIntersectSprite, enemy, currAttack
-        cmp eax, 1
-        jne GamePlay_no_collision
-
-        ;; Knockback enemy
-        mov eax, currAttack.velX
-        sal eax, 4
-        add enemy.posX, eax
-
-        mov ebx, currAttack.velY
-        sal ebx, 4
-        add enemy.posY, ebx
-
-        ;; Inactivate attack
-        mov currAttack.active, 0
-
-    GamePlay_no_collision:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Update sprites
