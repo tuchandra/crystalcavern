@@ -11,6 +11,13 @@ _LEVEL STRUCT
 
     bitmap      DWORD   ?
 
+    ;; (sizeX, sizeY): DWORD dimensions of size of bitmap, in grid squares
+    ;;                 should equal bitmap.dwWidth / 24 and btimap.dwHeight / 24
+    ;;                 but this is easier
+
+    sizeX       DWORD   ?
+    sizeY       DWORD   ?
+
     ;; info: DWORD pointer to a byte array that contains all info about map
     ;; Each byte represents one square, indexed the same way the screen is
     ;; Bits are indexed 76543210
