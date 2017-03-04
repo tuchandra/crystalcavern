@@ -9,6 +9,6 @@ You control a Pokemon who has been dropped into a dungeon. It is your job to fin
  * Use **spacebar** to attack.
 
 ## Current next steps
- * Make a full-sized level background
- * Control player movement along the level
- * Control item and enemy generation along the level
+ * Redesign screen layout (include level and player info on right side)
+ * Design system for enemies, including generation, movement, and attacking
+ * Design system for items and item pickup
