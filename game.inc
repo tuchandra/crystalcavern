@@ -100,9 +100,6 @@ _SPRITE STRUCT
     posX            DWORD    ?
     posY            DWORD    ?
 
-    ;; rotation: fixed point rotation angle
-    rotation        FXPT    0
-
     ;; (velX, velY): fixed point velocity vector
     velX            FXPT    ?
     velY            FXPT    ?
