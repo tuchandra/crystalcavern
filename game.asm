@@ -67,38 +67,6 @@ outStr_second BYTE 256 DUP(0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Utility function: clear the entire screen
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-ClearScreen PROC USES edi eax
-        ;; Find end of screen
-        LOCAL ScreenEndPtr:DWORD
-        mov eax, ScreenBitsPtr
-        add eax, 307199  ; Screen is 640 * 480 = 307200 px
-        mov ScreenEndPtr, eax
-
-        ;; Initailize loop
-        mov edi, ScreenBitsPtr
-        xor eax, eax
-
-        ;; for (i = ScreenBitsPtr; i < ScreenEnd; i++) 
-        ;;     Screen[i] <- black pixel
-
-    ClearScreen_loop:
-        mov (BYTE PTR [edi]), al
-        inc edi
-
-        ;; if (edi < ScreenEndPtr) loop again
-        cmp edi, ScreenEndPtr
-        jl ClearScreen_loop
-
-        ret
-ClearScreen ENDP
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Utility function: print registers onto the screen
 ;;                   this is a bad way to debug
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -167,6 +135,96 @@ PrintTwoVals PROC first:DWORD, second:DWORD
 
         ret
 PrintTwoVals ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Utility function: clear the entire screen
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ClearEntireScreen PROC USES edi eax
+        ;; Find end of screen
+        LOCAL ScreenEndPtr:DWORD
+        mov eax, ScreenBitsPtr
+        add eax, 307199  ; Screen is 640 * 480 = 307200 px
+        mov ScreenEndPtr, eax
+
+        ;; Initailize loop
+        mov edi, ScreenBitsPtr
+        xor eax, eax
+
+        ;; for (i = ScreenBitsPtr; i < ScreenEnd; i++) 
+        ;;     Screen[i] <- black pixel
+
+    ClearEntireScreen_loop:
+        mov (BYTE PTR [edi]), al
+        inc edi
+
+        ;; if (edi < ScreenEndPtr) loop again
+        cmp edi, ScreenEndPtr
+        jl ClearEntireScreen_loop
+
+        ret
+ClearEntireScreen ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Utility function: clear the right part of the screen,
+;;                   beyond 432 pixels. Keep the rest of
+;;                   the screen untouched.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ClearRightScreen PROC USES edi eax
+        ;; Find end of row, end of screen
+        ;; Screen is 640 x 480 px wide
+        LOCAL RowEndPtr:DWORD, ScreenEndPtr:DWORD
+
+        ;; Point to last pixel in row
+        mov eax, ScreenBitsPtr
+        add eax, 639
+        mov RowEndPtr, eax
+
+        ;; Points to last pixel of the screen
+        mov eax, ScreenBitsPtr
+        add eax, 307199  ; 640 * 480 = 307200 px
+        mov ScreenEndPtr, eax
+
+        ;; Initailize loop
+        mov edi, ScreenBitsPtr
+        add edi, 432
+
+        ;; Black pixel
+        xor eax, eax
+
+    ClearRightScreen_loop:
+        mov (BYTE PTR [edi]), al
+        inc edi
+
+        ;; If end of screen, exit
+        cmp edi, ScreenEndPtr
+        jnl ClearRightScreen_end
+
+        ;; If at end of row, incremement RowEndPtr and jump to col 432
+        ;; of the next row -- otherwise, loop again
+        cmp edi, RowEndPtr
+        jne ClearRightScreen_loop
+
+        ;; Set RowEndPtr to end of next row
+        add RowEndPtr, 640
+
+        ;; Move to row 432 of next row
+        add edi, 432
+
+        ;; Loop again for next row
+        jmp ClearRightScreen_loop
+
+    ClearRightScreen_end:
+
+        ret
+ClearRightScreen ENDP
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -426,7 +484,7 @@ RenderSprite PROC USES ebx ecx sprite:SPRITE
     INVOKE GridToDWORD, sprite.posY
     mov edx, eax
 
-    invoke RotateBlit, sprite.bitmap, ecx, edx, sprite.rotation
+    invoke BasicBlit, sprite.bitmap, ecx, edx
 
     ret
 RenderSprite ENDP
@@ -452,11 +510,11 @@ GameInit PROC
         mov level.bitmap, OFFSET MAP1
         mov level.info, OFFSET MAPINFO1
 
-        mov level.sizeX, 20
-        mov level.sizeY, 20
+        mov level.sizeX, 26
+        mov level.sizeY, 26
 
-        mov level.offsetX, -5
-        mov level.offsetY, -5
+        mov level.offsetX, 0
+        mov level.offsetY, 0
 
         ;; Do things?
 
@@ -468,8 +526,8 @@ GameInit PROC
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
-        mov player.posX, 6
-        mov player.posY, 6
+        mov player.posX, 7
+        mov player.posY, 7
 
         ;; Set sprite and direction
         mov player.bitmap, OFFSET PKMN2_LEFT
@@ -491,7 +549,7 @@ GameInit ENDP
 
 GamePlay PROC
         ;; Clear screen
-        INVOKE ClearScreen
+        INVOKE ClearEntireScreen
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render background
@@ -764,6 +822,14 @@ GamePlay PROC
         add currAttack.posY, eax
 
     GamePlay_attack_not_active:
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Display messages
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        INVOKE ClearRightScreen
+        INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Debug
