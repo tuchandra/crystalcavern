@@ -529,6 +529,9 @@ GameInit PROC
         mov player.posX, 7
         mov player.posY, 7
 
+        ;; Set level info so player's square is marked as occupied
+        INVOKE LevelInfoSetBit, player.posX, player.posY, level, 1
+
         ;; Set sprite and direction
         mov player.bitmap, OFFSET PKMN2_LEFT
         mov player.direction, 2
@@ -567,6 +570,8 @@ GamePlay PROC
     
         ;; Render enemies
 
+
+        ;; Render player
         INVOKE RenderSprite, player
 
         ;; Only render attack if active
@@ -625,6 +630,21 @@ GamePlay PROC
         ;; Move player one space up
         dec level.offsetY
 
+        ;; Modify level info array
+        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
+        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
+        ;; old square.
+        mov eax, level.offsetX
+        add eax, player.posX
+
+        mov ebx, level.offsetY
+        add ebx, player.posY
+
+        INVOKE LevelInfoSetBit, eax, ebx, level, 1
+        
+        ;; Old position is one below current position
+        dec ebx
+        INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
     GamePlay_not_up:
         ;; Check if down arrow was pressed
@@ -664,6 +684,22 @@ GamePlay PROC
 
         ;; Move player one space down
         inc level.offsetY
+
+        ;; Modify level info array
+        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
+        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
+        ;; old square.
+        mov eax, level.offsetX
+        add eax, player.posX
+
+        mov ebx, level.offsetY
+        add ebx, player.posY
+
+        INVOKE LevelInfoSetBit, eax, ebx, level, 1
+
+        ;; Old position is one above current position
+        inc ebx
+        INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
 
     GamePlay_not_down:
@@ -705,6 +741,22 @@ GamePlay PROC
         ;; Move player one space left
         dec level.offsetX
 
+        ;; Modify level info array
+        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
+        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
+        ;; old square.
+        mov eax, level.offsetX
+        add eax, player.posX
+
+        mov ebx, level.offsetY
+        add ebx, player.posY
+
+        INVOKE LevelInfoSetBit, eax, ebx, level, 1
+
+        ;; Old position is one right of new position
+        inc eax
+        INVOKE LevelInfoClearBit, eax, ebx, level, 1
+
 
     GamePlay_not_left:
         ;; Check if right arrow was pressed
@@ -744,6 +796,22 @@ GamePlay PROC
 
         ;; Move player one space right
         inc level.offsetX
+
+        ;; Modify level info array 
+        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
+        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
+        ;; old square.
+        mov eax, level.offsetX
+        add eax, player.posX
+
+        mov ebx, level.offsetY
+        add ebx, player.posY
+
+        INVOKE LevelInfoSetBit, eax, ebx, level, 1
+
+        ;; Old position is one left of new position
+        dec eax
+        INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
     GamePlay_not_right:
 
@@ -836,7 +904,6 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;INVOKE PrintTwoVals, MouseStatus.horiz, MouseStatus.vert
-
 
 
 	ret
