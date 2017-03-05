@@ -24,10 +24,11 @@ _LEVEL STRUCT
     ;; bit 0: walkable?
     ;;         - set if ground (player can walk on that square)
     ;;         - clear otherwise (player cannot walk there)
-    ;; bit 1: empty?
-    ;;         - can you place something else here?
-    ;;         - set if space is ground and empty (nothing on it)
-    ;;         - clear if not ground or not empty
+    ;; bit 1: occupied?
+    ;;         - is there something here already?
+    ;;         - set if not empty
+    ;;         - clear if space is empty (nothing on it) or not ground
+    ;;         -> to walk somewhere, need bit 0 set, bit 1 clear
     ;; ...
     
     info        DWORD   ?
