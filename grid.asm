@@ -25,7 +25,7 @@ include game.inc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Convert from grid tile to DWORD coordinate
+;; Convert from grid tile to DWORD coordinate
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -56,7 +56,7 @@ GridToDWORD ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Convert from grid tile to fixed point coordinate
+;; Convert from grid tile to fixed point coordinate
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -76,7 +76,113 @@ GridToFixed ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Render level on screen
+;; Set a particular bit in level.info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LevelInfoSetBit PROC USES ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+        ;; Calculate index into info as (y * sizeX) + x
+        mov eax, y
+        imul level.sizeX
+        add eax, x
+
+        ;; Get relevant byte from level.info
+        mov edi, level.info
+        xor edx, edx
+        mov dl, (BYTE PTR [edi + eax])
+
+        ;; Create mask to set relevant bit
+        mov ecx, bit  ; sal requires shift amount be immediate or in cl
+
+        xor ebx, ebx
+        mov bl, 1
+        sal bl, cl
+
+        ;; Set relevant bit
+        or dl, bl
+
+        ;; Move back to level.info
+        mov (BYTE PTR [edi + eax]), dl
+
+        ret
+LevelInfoSetBit ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Clear a particular bit in level.info
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LevelInfoClearBit PROC USES ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+        ;; Calculate index into info as (y * sizeX) + x
+        mov eax, y
+        imul level.sizeX
+        add eax, x
+
+        ;; Get relevant byte from level.info
+        mov edi, level.info
+        xor edx, edx
+        mov dl, (BYTE PTR [edi + eax])
+
+        ;; Create mask to clear relevant bit
+        mov ecx, bit  ; sal requires shift amount be immediate or in cl
+
+        xor ebx, ebx
+        mov bl, 1
+        sal bl, cl
+        not bl
+
+        ;; Clear relevant bit
+        and dl, bl
+
+        ;; Move back to level.info
+        mov (BYTE PTR [edi + eax]), dl
+
+        ret
+LevelInfoClearBit ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Check if particular bit in level.info is set
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+LevelInfoTestBit PROC USES ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+        ;; Calculate index into info as (y * sizeX) + x
+        mov eax, y
+        imul level.sizeX
+        add eax, x
+
+        ;; Get relevant byte from level.info
+        mov edi, level.info
+        xor edx, edx
+        mov dl, (BYTE PTR [edi + eax])
+
+        ;; Create mask to set relevant bit
+        mov ecx, bit  ; sal requires shift amount be immediate or in cl
+
+        xor ebx, ebx
+        mov bl, 1
+        sal bl, cl
+
+        ;; Test relevant bit
+        test dl, bl
+        jz LevelInfoTestBit_zero  ; bit not set
+
+        mov eax, 1
+        ret
+
+    LevelInfoTestBit_zero:
+        mov eax, 0
+        ret
+
+LevelInfoTestBit ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render level on screen
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

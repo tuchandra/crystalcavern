@@ -48,4 +48,7 @@ LEVEL TYPEDEF _LEVEL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 GridToDWORD PROTO coord:DWORD
 GridToFixed PROTO coord:DWORD
+LevelInfoSetBit PROTO x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+LevelInfoClearBit PROTO x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+LevelInfoTestBit PROTO x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
 RenderLevel PROTO level:LEVEL
