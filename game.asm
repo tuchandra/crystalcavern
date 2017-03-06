@@ -528,6 +528,59 @@ RenderSpriteOnLevel PROC USES ecx edx sprite:SPRITE, currLevel:LEVEL
     ret
 RenderSpriteOnLevel ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Generate random enemy at random valid position
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
+    LOCAL tempX:DWORD, tempY:DWORD
+
+    ;; We need a position that has the 0th bit set (so that it is
+    ;; a walkable square) and the 1st bit clear (so that it is not
+    ;; occupied).
+    ;;
+    ;; While we don't have a valid position, generate a new one
+
+    GenerateEnemy_position_gen:
+
+        INVOKE nrandom, currLevel.sizeX
+        mov tempX, eax
+
+        INVOKE nrandom, currLevel.sizeY
+        mov tempY, eax
+
+        ;; If 0th bit clear, not walkable; try again
+        INVOKE LevelInfoTestBit, tempX, tempY, currLevel, 0
+        jz GenerateEnemy_position_gen
+
+        ;; If 1st bit set, it's occupied; try again
+        INVOKE LevelInfoTestBit, tempX, tempY, currLevel, 1
+        jnz GenerateEnemy_position_gen
+
+        ;; Reaching here means we have a valid position
+        mov ebx, sprite
+
+        ;; Set sprite position
+        mov eax, tempX
+        mov (SPRITE PTR [ebx]).posX, eax
+
+        mov eax, tempY
+        mov (SPRITE PTR [ebx]).posY, eax
+
+        ;; Set bit 1 in currLevel.info
+        INVOKE LevelInfoSetBit, tempX, tempY, currLevel, 1
+
+        ;; Select sprite
+        mov (SPRITE PTR [ebx]).bitmap, OFFSET PKMN1_DOWN
+
+        ret
+
+GenerateEnemy ENDP
+
+
 GameInit PROC
     ;; Locals for temporary storage
     LOCAL tempX:DWORD, tempY:DWORD
@@ -584,55 +637,20 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Generate and set positions
-        ;; for (i = 0; i < NUM_ENEMIES; i ++)
-        ;;     generate random (x, y)
-        ;;     if level.info[x, y] walkable (bit 0 set)
-        ;;                     and not occupied (bit 1 clear)
-        ;;     give enemy that position
-        ;;     otherwise, try to generate again
-
+        
         xor ecx, ecx
         mov ebx, OFFSET enemies
 
     GameInit_enemy_position::
-
-        ;; push these so they don't get overwritten by nrandom
+        ;; push these so they don't get overwritten by 
         push ebx
         push ecx
 
-        ;; While we don't have a valid position, generate a new one
-        GameInit_enemy_position_generate:
-
-            INVOKE nrandom, level.sizeX
-            mov tempX, eax
-
-            INVOKE nrandom, level.sizeY
-            mov tempY, eax
-
-            ;; If 0th bit clear, not walkable; try again
-            INVOKE LevelInfoTestBit, tempX, tempY, level, 0
-            jz GameInit_enemy_position_generate
-
-            ;; If 1st bit set, it's occupied; try again
-            INVOKE LevelInfoTestBit, tempX, tempY, level, 1
-            jnz GameInit_enemy_position_generate
+        add ebx, ecx
+        INVOKE GenerateEnemy, ebx, level
 
         pop ecx
         pop ebx
-
-        ;; If we're here, we have a valid position
-        ;; Set sprite position
-        mov eax, tempX
-        mov (SPRITE PTR [ebx + ecx]).posX, eax
-
-        mov eax, tempY
-        mov (SPRITE PTR [ebx + ecx]).posY, eax
-
-        ;; Set bit 1 in level.info
-        INVOKE LevelInfoSetBit, tempX, tempY, level, 1
-
-        ;; Select and set sprites
-        mov (SPRITE PTR [ebx + ecx]).bitmap, OFFSET PKMN1
 
         ;; Move to next enemy if we're not done
         add ecx, TYPE SPRITE
