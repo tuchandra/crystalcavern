@@ -104,6 +104,9 @@ _SPRITE STRUCT
     ;; disappear: DWORD, number of frames until sprite disappears (-1 = never)
     active          DWORD    1
     disappear       DWORD   -1
+
+    ;; health: DWORD, amount of health remaining
+    health          DWORD   10
     
     ;; (posX, posY): grid position coordinates
     ;;               stored relative to a current level

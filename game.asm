@@ -30,17 +30,20 @@ includelib \masm32\lib\masm32.lib
 
 .DATA
 
+;; Sprites
 player SPRITE< >
-
 enemies SPRITE 5 DUP(<>)
-
 currAttack SPRITE< >
 
 level LEVEL< >
 
-;; Testing strings
+;; Messages
+EnemyHealth DWORD 10
 
-;; Format strings for PrintRegs
+fmtStr_enemy_health BYTE "Enemy health: %d/10", 0
+outStr_enemy_health BYTE 256 DUP(0)
+
+;; Strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
 outStr_eax BYTE 256 DUP(0)
 
@@ -53,7 +56,7 @@ outStr_ecx BYTE 256 DUP(0)
 fmtStr_edx BYTE "edx: %d", 0
 outStr_edx BYTE 256 DUP(0)
 
-;; Format strings for PrintTwoVals
+;; Strings for PrintTwoVals
 fmtStr_first BYTE "first: %d", 0
 outStr_first BYTE 256 DUP(0)
 
@@ -378,17 +381,21 @@ CheckIntersectSprite PROC one:SPRITE, two:SPRITE
     
     LOCAL oneXD:DWORD, oneYD:DWORD, twoXD:DWORD, twoYD:DWORD
     
-    ;; Get sprite positions and convert from fixed point
+    ;; Get sprite positions and convert to DWORD
     mov eax, one.posX
+    INVOKE GridToDWORD, eax
     mov oneXD, eax
 
     mov eax, one.posY
+    INVOKE GridToDWORD, eax
     mov oneYD, eax
 
     mov eax, two.posX
+    INVOKE GridToDWORD, eax
     mov twoXD, eax
 
     mov eax, two.posY
+    INVOKE GridToDWORD, eax
     mov twoYD, eax
 
     ;; Call the normal CheckIntersect
@@ -638,8 +645,6 @@ GameInit PROC
         mov level.offsetX, 0
         mov level.offsetY, 0
 
-        ;; Do things?
-
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -691,14 +696,21 @@ GameInit ENDP
 
 
 GamePlay PROC
-        ;; Clear screen
-        INVOKE ClearEntireScreen
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render background
+    ;; Locals!
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Clear screen; render level; clear right part of screen
+    ;; to make room for messages, status info, etc.
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        INVOKE ClearEntireScreen
         INVOKE RenderLevel, level
+        INVOKE ClearRightScreen
+
+        INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render enemies
@@ -714,7 +726,15 @@ GamePlay PROC
         ;; sure what the bug is.
         push ecx
         push ebx
+
+        ;; Only render active enemies
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_render_enemy
+
         INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+
+    GamePlay_no_render_enemy:
+
         pop ebx
         pop ecx
 
@@ -733,7 +753,7 @@ GamePlay PROC
         cmp currAttack.active, 1
         jne GamePlay_no_render_attack
         
-        INVOKE RenderSprite, currAttack
+        INVOKE RenderSpriteOnLevel, currAttack, level
 
     GamePlay_no_render_attack:
 
@@ -911,10 +931,9 @@ GamePlay PROC
     ;; Attack -- spacebar control
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         cmp eax, VK_SPACE
-        jne GamePlay_not_space
+        jne GamePlay_not_attack
 
-        ;; Initialize attack sprite
-        mov currAttack.bitmap, OFFSET ATTK1
+        ;; Activate attack sprite
         mov currAttack.active, 1
 
         ;; Set attack position to current player
@@ -924,9 +943,8 @@ GamePlay PROC
         mov eax, player.posY
         mov currAttack.posY, eax
 
-        ;; Initialize attack velocity (this will be in some direction) 
+        ;; Initialize attack velocity; will be in some direction later
         mov ebx, 1
-        sal ebx, 16
 
         ;; Set attack velocity in direction of current player
         ;; Direction is 0 (up), 1 (down), 2 (left), 3 (right)
@@ -955,16 +973,63 @@ GamePlay PROC
 
     GamePlay_attack_not_left:
         cmp eax, 3
-        jne GamePlay_not_space
+        jne GamePlay_not_attack
 
         mov currAttack.velX, ebx
         mov currAttack.velY, 0
 
-    GamePlay_not_space:
+    GamePlay_not_attack:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Check if attack active; if not don't do collision detection
+        cmp currAttack.active, 1
+        jne GamePlay_no_attack_collision_check
+
+        ;; Check if attack hit any enemies
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GamePlay_enemy_collision_loop:
+        ;; Check if enemy active; if not, don't do collision detection
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_enemy_no_collision
+
+        ;; Do the collision detection
+        INVOKE CheckIntersectSprite, currAttack, (SPRITE PTR [ebx + ecx])
+        cmp eax, 0
+        jz GamePlay_enemy_no_collision
+
+        ;; On collision behavior
+        ;; Set EnemyHealth for rendering at end of frame
+        dec (SPRITE PTR [ebx + ecx]).health
+        mov eax, (SPRITE PTR [ebx + ecx]).health
+        mov EnemyHealth, eax
+
+        ;; Deactivate attack
+        mov currAttack.active, 0
+
+        ;; Check if enemy is dead
+        cmp EnemyHealth, 0
+        jg GamePlay_enemy_not_dead
+
+        ;; Enemy is dead; deactivate sprite, clear its location
+        mov (SPRITE PTR [ebx + ecx]).active, 0
+        INVOKE LevelInfoClearBit, (SPRITE PTR [ebx + ecx]).posX, (SPRITE PTR [ebx + ecx]).posY, level, 1
+
+    GamePlay_enemy_not_dead:
+
+
+    GamePlay_enemy_no_collision:
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+
+        jl GamePlay_enemy_collision_loop
+
+
+    GamePlay_no_attack_collision_check:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Update sprites
@@ -988,8 +1053,12 @@ GamePlay PROC
     ;; Display messages
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        INVOKE ClearRightScreen
-        INVOKE DrawLine, 432, 0, 432, 480, 0ffh
+        push EnemyHealth
+        push OFFSET fmtStr_enemy_health
+        push OFFSET outStr_enemy_health
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, offset outStr_enemy_health, 450, 200, 0ffh
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Debug
