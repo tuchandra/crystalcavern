@@ -714,35 +714,26 @@ GamePlay PROC
         ;; The tile above the player has y-coord one smaller
         dec ecx
 
-        ;; Calculate index into byte array of map info
-        mov edi, level.bitmap
-        mov eax, level.sizeX
-        imul eax, ecx  ; eax <- level.sizeX * (player.posY - 1)
-        add eax, ebx   ; eax <- index of pixel above player
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
+        jz GamePlay_not_up  ; if 0, not walkable
 
-        ;; Access byte of interest
-        mov esi, level.info
-        xor edx, edx
-        mov dl, BYTE PTR [esi + eax]
-
-        ;; Last bit is set if player can walk, clear if cannot
-        test dl, 1
-        jz GamePlay_not_up
+        ;; Check if new square walkable not occupied
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
+        jnz GamePlay_not_up  ; if 1, occupied and can't walk
 
         ;; Move player one space up
         dec level.offsetY
         dec player.posY
 
-        ;; Modify level info array
-        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
-        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
-        ;; old square.
+        ;; Update map offset so it looks like the player moved up.
+        ;; Then move player one space up, relative to the map
         mov eax, player.posX
         mov ebx, player.posY
 
+        ;; Set new square as occupied
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
         
-        ;; Old position is one below current position
+        ;; Set old square (one below) as empty
         inc ebx
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
@@ -763,35 +754,26 @@ GamePlay PROC
         ;; The tile below the player has y-coord one larger
         inc ecx
 
-        ;; Calculate index into byte array of map info
-        mov edi, level.bitmap
-        mov eax, level.sizeX
-        imul eax, ecx  ; eax <- level.sizeX * (player.posY + 1)
-        add eax, ebx   ; eax <- index of pixel below player
+        ;; Check if new square walkable and not occupied
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
+        jz GamePlay_not_down  ; if 0, cannot walk
 
-        ;; Access byte of interest
-        mov esi, level.info
-        xor edx, edx
-        mov dl, BYTE PTR [esi + eax]
-
-        ;; Last bit is set if player can walk, clear if cannot
-        test dl, 1
-        jz GamePlay_not_down
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
+        jnz GamePlay_not_down  ; if 1, occupied and can't walk
 
         ;; Move player one space down
         inc level.offsetY
         inc player.posY
 
-        ;; Modify level info array
-        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
-        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
-        ;; old square.
+        ;; Update map offset so it looks like the player moved down.
+        ;; Then move player one space down, relative to the map
         mov eax, player.posX
         mov ebx, player.posY
 
+        ;; Set new square as occupied
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
-        ;; Old position is one above current position
+        ;; Set old square (one above) as empty
         dec ebx
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
@@ -813,35 +795,26 @@ GamePlay PROC
         ;; The tile to the left of the player has x-coord one smaller
         dec ebx
 
-        ;; Calculate index into byte array of map info
-        mov edi, level.bitmap
-        mov eax, level.sizeX
-        imul eax, ecx  ; eax <- level.sizeX * (player.posY)
-        add eax, ebx   ; eax <- index of pixel left of player
+        ;; Check if new square walkable and not occupied
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
+        jz GamePlay_not_left  ; if 0, cannot walk
 
-        ;; Access byte of interest
-        mov esi, level.info
-        xor edx, edx
-        mov dl, BYTE PTR [esi + eax]
-
-        ;; Last bit is set if player can walk, clear if cannot
-        test dl, 1
-        jz GamePlay_not_left
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
+        jnz GamePlay_not_left  ; if 1, occupied and can't walk
 
         ;; Move player one space left
         dec level.offsetX
         dec player.posX
 
-        ;; Modify level info array
-        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
-        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
-        ;; old square.
+        ;; Update map offset so it looks like the player moved left.
+        ;; Then move player one space left, relative to the map
         mov eax, player.posX
         mov ebx, player.posY
 
+        ;; Set new square as occupied
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
-        ;; Old position is one right of new position
+        ;; Set old square (one right) as empty
         inc eax
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
@@ -863,35 +836,26 @@ GamePlay PROC
         ;; The tile below the player has x-coord one larger
         inc ebx
 
-        ;; Calculate index into byte array of map info
-        mov edi, level.bitmap
-        mov eax, level.sizeX
-        imul eax, ecx  ; eax <- level.sizeX * (player.posY)
-        add eax, ebx   ; eax <- index of pixel right of player
+        ;; Check if new square walkable and not occupied
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
+        jz GamePlay_not_right  ; if 0, cannot walk
 
-        ;; Access byte of interest
-        mov esi, level.info
-        xor edx, edx
-        mov dl, BYTE PTR [esi + eax]
-
-        ;; Last bit is set if player can walk, clear if cannot
-        test dl, 1
-        jz GamePlay_not_right
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
+        jnz GamePlay_not_right  ; if 1, occupied and can't walk
 
         ;; Move player one space right
         inc level.offsetX
         inc player.posX
 
-        ;; Modify level info array 
-        ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
-        ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
-        ;; old square.
+        ;; Update map offset so it looks like the player moved right.
+        ;; Then move player one space right, relative to the map
         mov eax, player.posX
         mov ebx, player.posY
 
+        ;; Set new square as occupied
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
-        ;; Old position is one left of new position
+        ;; Set old square (one left) as empty
         dec eax
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
@@ -985,7 +949,7 @@ GamePlay PROC
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        INVOKE PrintTwoVals, player.posX, player.posY
+        ;INVOKE PrintTwoVals, enemies.posX, enemies.posY
 
 
 	ret
