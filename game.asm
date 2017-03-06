@@ -574,7 +574,35 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         INVOKE LevelInfoSetBit, tempX, tempY, currLevel, 1
 
         ;; Select sprite
+        push ebx
+        
+        INVOKE nrandom, 2
+        cmp eax, 1
+        jz GenerateEnemy_sprite_zero
+
+        ;; Generated number 1 -- put PKMN 2
+        mov (SPRITE PTR [ebx]).bitmap_up, OFFSET PKMN2_UP
+        mov (SPRITE PTR [ebx]).bitmap_down, OFFSET PKMN2_DOWN
+        mov (SPRITE PTR [ebx]).bitmap_left, OFFSET PKMN2_LEFT
+        mov (SPRITE PTR [ebx]).bitmap_right, OFFSET PKMN2_RIGHT
+
+        mov (SPRITE PTR [ebx]).bitmap, OFFSET PKMN2_DOWN
+        mov (SPRITE PTR [ebx]).direction, 1
+
+        jmp GenerateEnemy_done
+
+    GenerateEnemy_sprite_zero:
+        ;; Generated number 0 -- put PKMN 1
+        mov (SPRITE PTR [ebx]).bitmap_up, OFFSET PKMN1_UP
+        mov (SPRITE PTR [ebx]).bitmap_down, OFFSET PKMN1_DOWN
+        mov (SPRITE PTR [ebx]).bitmap_left, OFFSET PKMN1_LEFT
+        mov (SPRITE PTR [ebx]).bitmap_right, OFFSET PKMN1_RIGHT
+
         mov (SPRITE PTR [ebx]).bitmap, OFFSET PKMN1_DOWN
+        mov (SPRITE PTR [ebx]).direction, 1
+
+
+    GenerateEnemy_done:
 
         ret
 
@@ -623,14 +651,14 @@ GameInit PROC
         INVOKE LevelInfoSetBit, player.posX, player.posY, level, 1
 
         ;; Set sprite and direction
-        mov player.bitmap, OFFSET PKMN2_LEFT
+        mov player.bitmap, OFFSET PKMN3_LEFT
         mov player.direction, 2
 
         ;; Set all sprites
-        mov player.bitmap_up, OFFSET PKMN2_UP
-        mov player.bitmap_down, OFFSET PKMN2_DOWN
-        mov player.bitmap_left, OFFSET PKMN2_LEFT
-        mov player.bitmap_right, OFFSET PKMN2_RIGHT
+        mov player.bitmap_up, OFFSET PKMN3_UP
+        mov player.bitmap_down, OFFSET PKMN3_DOWN
+        mov player.bitmap_left, OFFSET PKMN3_LEFT
+        mov player.bitmap_right, OFFSET PKMN3_RIGHT
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
