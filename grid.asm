@@ -80,7 +80,7 @@ GridToFixed ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-LevelInfoSetBit PROC USES ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+LevelInfoSetBit PROC USES eax ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
         ;; Calculate index into info as (y * sizeX) + x
         mov eax, y
         imul level.sizeX
@@ -114,7 +114,7 @@ LevelInfoSetBit ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-LevelInfoClearBit PROC USES ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
+LevelInfoClearBit PROC USES eax ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, bit:DWORD
         ;; Calculate index into info as (y * sizeX) + x
         mov eax, y
         imul level.sizeX
