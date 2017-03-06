@@ -73,7 +73,14 @@ outStr_second BYTE 256 DUP(0)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 PrintRegs PROC USES eax ebx ecx edx
+        ;; save original values since wsprintf / DrawStr mess with them
+        push edx
+        push ecx
+        push ebx
+        push eax
+
         ;; print eax
+        pop eax
         push eax
         push OFFSET fmtStr_eax
         push OFFSET outStr_eax
@@ -81,7 +88,9 @@ PrintRegs PROC USES eax ebx ecx edx
         add esp, 12
         INVOKE DrawStr, offset outStr_eax, 10, 400, 0ffh
 
+
         ;; print ebx
+        pop ebx
         push ebx
         push OFFSET fmtStr_ebx
         push OFFSET outStr_ebx
@@ -89,7 +98,9 @@ PrintRegs PROC USES eax ebx ecx edx
         add esp, 12
         INVOKE DrawStr, offset outStr_ebx, 10, 410, 0ffh
 
+
         ;; print ecx
+        pop ecx
         push ecx
         push OFFSET fmtStr_ecx
         push OFFSET outStr_ecx
@@ -98,6 +109,7 @@ PrintRegs PROC USES eax ebx ecx edx
         INVOKE DrawStr, offset outStr_ecx, 10, 420, 0ffh
 
         ;; print edx
+        pop edx
         push edx
         push OFFSET fmtStr_edx
         push OFFSET outStr_edx
@@ -643,7 +655,7 @@ GamePlay PROC
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
         
         ;; Old position is one below current position
-        dec ebx
+        inc ebx
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
     GamePlay_not_up:
@@ -698,7 +710,7 @@ GamePlay PROC
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
         ;; Old position is one above current position
-        inc ebx
+        dec ebx
         INVOKE LevelInfoClearBit, eax, ebx, level, 1
 
 
