@@ -131,9 +131,9 @@ LevelInfoClearBit PROC USES eax ebx ecx edx edi x:DWORD, y:DWORD, level:LEVEL, b
         xor ebx, ebx
         mov bl, 1
         sal bl, cl
-        not bl
 
         ;; Clear relevant bit
+        not bl
         and dl, bl
 
         ;; Move back to level.info
