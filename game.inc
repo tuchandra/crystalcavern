@@ -110,9 +110,9 @@ _SPRITE STRUCT
     posX            DWORD    ?
     posY            DWORD    ?
 
-    ;; (velX, velY): fixed point velocity vector
-    velX            FXPT    ?
-    velY            FXPT    ?
+    ;; (velX, velY): velocity vector
+    velX            DWORD    ?
+    velY            DWORD    ?
 _SPRITE ENDS
 
 SPRITE TYPEDEF _SPRITE
