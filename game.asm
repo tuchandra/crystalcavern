@@ -33,12 +33,10 @@ includelib \masm32\lib\masm32.lib
 player SPRITE< >
 enemy SPRITE< >
 currAttack SPRITE< >
-item1 SPRITE< >
 
 level LEVEL< >
 
 ;; Testing strings
-str_item_pickup BYTE "You obtained an item!", 0
 
 ;; Format strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
@@ -531,10 +529,6 @@ GameInit PROC
         ;; Do things?
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Initialize items
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
@@ -572,10 +566,6 @@ GamePlay PROC
         
         INVOKE RenderLevel, level
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render active items
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render sprites
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
