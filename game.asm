@@ -32,7 +32,7 @@ includelib \masm32\lib\masm32.lib
 
 player SPRITE< >
 
-enemies SPRITE 2 DUP(<>)
+enemies SPRITE 5 DUP(<>)
 
 currAttack SPRITE< >
 
@@ -502,6 +502,32 @@ RenderSprite PROC USES ecx edx sprite:SPRITE
 RenderSprite ENDP
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render sprites on screen, relative to a map
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RenderSpriteOnLevel PROC USES ecx edx sprite:SPRITE, currLevel:LEVEL
+
+    ;; Sprite positions are in grid coordinates relative to level.
+    ;; Subtract off level offset to convert to screen coordinates,
+    ;; then convert to DWORD for rendering
+    mov eax, sprite.posX
+    sub eax, currLevel.offsetX
+    INVOKE GridToDWORD, eax
+    mov ecx, eax
+
+    mov eax, sprite.posY
+    sub eax, currLevel.offsetY
+    INVOKE GridToDWORD, eax
+    mov edx, eax
+
+    invoke BasicBlit, sprite.bitmap, ecx, edx
+
+    ret
+RenderSpriteOnLevel ENDP
+
 GameInit PROC
     ;; Locals for temporary storage
     LOCAL tempX:DWORD, tempY:DWORD
@@ -642,7 +668,7 @@ GamePlay PROC
         ;; sure what the bug is.
         push ecx
         push ebx
-        INVOKE RenderSprite, (SPRITE PTR [ebx + ecx])
+        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
         pop ebx
         pop ecx
 
@@ -655,7 +681,7 @@ GamePlay PROC
     ;; Render other sprites (player, attack)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        INVOKE RenderSprite, player
+        INVOKE RenderSpriteOnLevel, player, level
 
         ;; Only render attack if active
         cmp currAttack.active, 1
@@ -681,16 +707,9 @@ GamePlay PROC
         mov player.direction, 0
 
         ;; Check if player can actually move up
-        ;;
-        ;; These coords are relative to the screen, not level
-        ;; Because the player is at screen(posX, posY), and
-        ;; screen(0, 0) ~ bitmap(offsetX, offsetY),
-        ;; screen(posX, posY) ~ bitmap(offsetX + posX, offsetY + posY)
+        ;; Player coordinates are relative to the level.
         mov ebx, player.posX
-        add ebx, level.offsetX
-
         mov ecx, player.posY
-        add ecx, level.offsetY
 
         ;; The tile above the player has y-coord one smaller
         dec ecx
@@ -712,16 +731,14 @@ GamePlay PROC
 
         ;; Move player one space up
         dec level.offsetY
+        dec player.posY
 
         ;; Modify level info array
         ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
         ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
         ;; old square.
-        mov eax, level.offsetX
-        add eax, player.posX
-
-        mov ebx, level.offsetY
-        add ebx, player.posY
+        mov eax, player.posX
+        mov ebx, player.posY
 
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
         
@@ -740,12 +757,8 @@ GamePlay PROC
         mov player.direction, 1
 
         ;; Check if player can actually move down
-        ;; See above section for explanation of this code
         mov ebx, player.posX
-        add ebx, level.offsetX
-
         mov ecx, player.posY
-        add ecx, level.offsetY
 
         ;; The tile below the player has y-coord one larger
         inc ecx
@@ -767,16 +780,14 @@ GamePlay PROC
 
         ;; Move player one space down
         inc level.offsetY
+        inc player.posY
 
         ;; Modify level info array
         ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
         ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
         ;; old square.
-        mov eax, level.offsetX
-        add eax, player.posX
-
-        mov ebx, level.offsetY
-        add ebx, player.posY
+        mov eax, player.posX
+        mov ebx, player.posY
 
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
@@ -796,12 +807,8 @@ GamePlay PROC
         mov player.direction, 2
 
         ;; Check if player can actually move left
-        ;; See above section for explanation of this code
         mov ebx, player.posX
-        add ebx, level.offsetX
-
         mov ecx, player.posY
-        add ecx, level.offsetY
 
         ;; The tile to the left of the player has x-coord one smaller
         dec ebx
@@ -823,16 +830,14 @@ GamePlay PROC
 
         ;; Move player one space left
         dec level.offsetX
+        dec player.posX
 
         ;; Modify level info array
         ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
         ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
         ;; old square.
-        mov eax, level.offsetX
-        add eax, player.posX
-
-        mov ebx, level.offsetY
-        add ebx, player.posY
+        mov eax, player.posX
+        mov ebx, player.posY
 
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
@@ -852,12 +857,8 @@ GamePlay PROC
         mov player.direction, 3
 
         ;; Check if player can actually move right
-        ;; See above section for explanation of this code
         mov ebx, player.posX
-        add ebx, level.offsetX
-
         mov ecx, player.posY
-        add ecx, level.offsetY
 
         ;; The tile below the player has x-coord one larger
         inc ebx
@@ -879,16 +880,14 @@ GamePlay PROC
 
         ;; Move player one space right
         inc level.offsetX
+        inc player.posX
 
         ;; Modify level info array 
         ;; New position (level.offsetX + player.posX, level.offsetY + player.posY)
         ;; so set the "occupied" bit to 1. Then clear the "occupied" bit of the
         ;; old square.
-        mov eax, level.offsetX
-        add eax, player.posX
-
-        mov ebx, level.offsetY
-        add ebx, player.posY
+        mov eax, player.posX
+        mov ebx, player.posY
 
         INVOKE LevelInfoSetBit, eax, ebx, level, 1
 
@@ -986,7 +985,7 @@ GamePlay PROC
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;INVOKE PrintTwoVals, MouseStatus.horiz, MouseStatus.vert
+        INVOKE PrintTwoVals, player.posX, player.posY
 
 
 	ret

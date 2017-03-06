@@ -97,6 +97,7 @@ _SPRITE STRUCT
     disappear       DWORD   -1
     
     ;; (posX, posY): grid position coordinates
+    ;;               stored relative to a current level
     posX            DWORD    ?
     posY            DWORD    ?
 
