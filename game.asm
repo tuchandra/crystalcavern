@@ -31,7 +31,9 @@ includelib \masm32\lib\masm32.lib
 .DATA
 
 player SPRITE< >
-enemy SPRITE< >
+
+enemies SPRITE 2 DUP(<>)
+
 currAttack SPRITE< >
 
 level LEVEL< >
@@ -126,7 +128,7 @@ PrintRegs ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-PrintTwoVals PROC first:DWORD, second:DWORD
+PrintTwoVals PROC USES eax ebx ecx edx first:DWORD, second:DWORD
         ;; print first val
         push first
         push OFFSET fmtStr_first
@@ -485,7 +487,7 @@ CheckIntersectMouse ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RenderSprite PROC USES ebx ecx sprite:SPRITE
+RenderSprite PROC USES ecx edx sprite:SPRITE
 
     ;; Sprite positions are in grid coordinates
     INVOKE GridToDWORD, sprite.posX
@@ -501,6 +503,9 @@ RenderSprite ENDP
 
 
 GameInit PROC
+    ;; Locals for temporary storage
+    LOCAL tempX:DWORD, tempY:DWORD
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Assorted things
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -551,7 +556,64 @@ GameInit PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
+
+        ;; Generate and set positions
+        ;; for (i = 0; i < NUM_ENEMIES; i ++)
+        ;;     generate random (x, y)
+        ;;     if level.info[x, y] walkable (bit 0 set)
+        ;;                     and not occupied (bit 1 clear)
+        ;;     give enemy that position
+        ;;     otherwise, try to generate again
+
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GameInit_enemy_position::
+
+        ;; push these so they don't get overwritten by nrandom
+        push ebx
+        push ecx
+
+        ;; While we don't have a valid position, generate a new one
+        GameInit_enemy_position_generate:
+
+            INVOKE nrandom, level.sizeX
+            mov tempX, eax
+
+            INVOKE nrandom, level.sizeY
+            mov tempY, eax
+
+            ;; If 0th bit clear, not walkable; try again
+            INVOKE LevelInfoTestBit, tempX, tempY, level, 0
+            jz GameInit_enemy_position_generate
+
+            ;; If 1st bit set, it's occupied; try again
+            INVOKE LevelInfoTestBit, tempX, tempY, level, 1
+            jnz GameInit_enemy_position_generate
+
+        pop ecx
+        pop ebx
+
+        ;; If we're here, we have a valid position
+        ;; Set sprite position
+        mov eax, tempX
+        mov (SPRITE PTR [ebx + ecx]).posX, eax
+
+        mov eax, tempY
+        mov (SPRITE PTR [ebx + ecx]).posY, eax
+
+        ;; Set bit 1 in level.info
+        INVOKE LevelInfoSetBit, tempX, tempY, level, 1
+
+        ;; Select and set sprites
+        mov (SPRITE PTR [ebx + ecx]).bitmap, OFFSET PKMN1
+
+        ;; Move to next enemy if we're not done
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+
+        jl GameInit_enemy_position
+
         ret
 GameInit ENDP
 
@@ -567,13 +629,32 @@ GamePlay PROC
         INVOKE RenderLevel, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render sprites
+    ;; Render enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-        ;; Render enemies
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+    
+    GamePlay_render_enemies:
+        ;; These push / pop statements stop the game from crashing
+        ;; For some reason the values don't get preserved when calling
+        ;; RenderSprite. But I have my USES statements right, so not
+        ;; sure what the bug is.
+        push ecx
+        push ebx
+        INVOKE RenderSprite, (SPRITE PTR [ebx + ecx])
+        pop ebx
+        pop ecx
 
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
 
-        ;; Render player
+        jl GamePlay_render_enemies
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Render other sprites (player, attack)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
         INVOKE RenderSprite, player
 
         ;; Only render attack if active
