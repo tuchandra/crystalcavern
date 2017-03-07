@@ -32,7 +32,7 @@ includelib \masm32\lib\masm32.lib
 
 ;; Sprites
 player SPRITE< >
-enemies SPRITE 5 DUP(<>)
+enemies SPRITE 15 DUP(<>)
 currAttack SPRITE< >
 
 level LEVEL< >
@@ -748,25 +748,25 @@ GameInit PROC
         mov level.bitmap, OFFSET MAP1
         mov level.info, OFFSET MAPINFO1
 
-        mov level.sizeX, 26
-        mov level.sizeY, 26
+        mov level.sizeX, 46
+        mov level.sizeY, 46
 
         mov level.offsetX, 0
-        mov level.offsetY, 0
+        mov level.offsetY, 6
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize player
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ;; Set position
         mov player.posX, 7
-        mov player.posY, 7
+        mov player.posY, 16
 
         ;; Set level info so player's square is marked as occupied
         INVOKE LevelInfoSetBit, player.posX, player.posY, level, 1
 
         ;; Set sprite and direction
-        mov player.bitmap, OFFSET PKMN3_LEFT
-        mov player.direction, 2
+        mov player.bitmap, OFFSET PKMN3_RIGHT
+        mov player.direction, 3
 
         ;; Set all sprites
         mov player.bitmap_up, OFFSET PKMN3_UP
@@ -840,15 +840,11 @@ GamePlay PROC
     GamePlay_main:
     
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Clear screen; render level; clear right part of screen
-    ;; to make room for messages, status info, etc.
+    ;; Clear screen; render level
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         INVOKE ClearEntireScreen
         INVOKE RenderLevel, level
-        INVOKE ClearRightScreen
-
-        INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render enemies
@@ -919,7 +915,6 @@ GamePlay PROC
 
         INVOKE TryToMove, OFFSET player, level, 1
         add level.offsetY, eax
-
 
     GamePlay_not_down:
         ;; Check if left arrow was pressed
@@ -1147,6 +1142,10 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Display messages
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Clear right part of screen to make room, divide regions        
+        INVOKE ClearRightScreen
+        INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
         push EnemyHealth
         push OFFSET fmtStr_enemy_health
