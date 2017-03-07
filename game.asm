@@ -943,7 +943,7 @@ GamePlay PROC
         push ecx
         push ebx
 
-        invoke nrandom, 40
+        invoke nrandom, 60
 
         pop ebx
         pop ecx
