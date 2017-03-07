@@ -635,6 +635,8 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ;; if possible.
         ;; 
         ;; Directions: 0 (up), 1 (down), 2 (left), 3 (right)
+        ;;
+        ;; Return: 1 if successful, 0 otherwise
 
         mov edi, sprite
         mov ebx, (SPRITE PTR [edi]).posX
@@ -647,6 +649,7 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ;; Trying to move up -- y-coord one smaller, face up
         dec ecx
 
+        mov (SPRITE PTR [edi]).direction, 0
         mov eax, (SPRITE PTR [edi]).bitmap_up
         mov (SPRITE PTR [edi]).bitmap, eax
 
@@ -660,6 +663,7 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ;; Trying to move down -- y-coord one larger, face down
         inc ecx
 
+        mov (SPRITE PTR [edi]).direction, 1
         mov eax, (SPRITE PTR [edi]).bitmap_down
         mov (SPRITE PTR [edi]).bitmap, eax
 
@@ -673,6 +677,7 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ;; Trying to move left -- x-coord one smaller
         dec ebx
 
+        mov (SPRITE PTR [edi]).direction, 2
         mov eax, (SPRITE PTR [edi]).bitmap_left
         mov (SPRITE PTR [edi]).bitmap, eax
 
@@ -683,6 +688,7 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ;; Trying to move right -- x-coord one larger
         inc ebx
 
+        mov (SPRITE PTR [edi]).direction, 3
         mov eax, (SPRITE PTR [edi]).bitmap_right
         mov (SPRITE PTR [edi]).bitmap, eax
 
@@ -707,9 +713,14 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
 
         ;; Set the new location
         INVOKE LevelInfoSetBit, (SPRITE PTR [edi]).posX, (SPRITE PTR [edi]).posY, level, 1
+        
+        mov eax, 1
+        ret
 
     TryToMove_done:
 
+        ;; Not successful in moving
+        mov eax, 0
         ret
 
 TryToMove ENDP
@@ -894,80 +905,20 @@ GamePlay PROC
         cmp eax, VK_UP
         jne GamePlay_not_up
 
-        ;; Face up
-        mov eax, player.bitmap_up
-        mov player.bitmap, eax
-        mov player.direction, 0
+        INVOKE TryToMove, OFFSET player, level, 0
 
-        ;; Check if player can actually move up
-        ;; Player coordinates are relative to the level.
-        mov ebx, player.posX
-        mov ecx, player.posY
-
-        ;; The tile above the player has y-coord one smaller
-        dec ecx
-
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
-        jz GamePlay_not_up  ; if 0, not walkable
-
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
-        jnz GamePlay_not_up  ; if 1, occupied and can't walk
-
-        ;; Move player one space up
-        dec level.offsetY
-        dec player.posY
-
-        ;; Update map offset so it looks like the player moved up.
-        ;; Then move player one space up, relative to the map
-        mov eax, player.posX
-        mov ebx, player.posY
-
-        ;; Set new square as occupied
-        INVOKE LevelInfoSetBit, eax, ebx, level, 1
-        
-        ;; Set old square (one below) as empty
-        inc ebx
-        INVOKE LevelInfoClearBit, eax, ebx, level, 1
+        ;; This is bad, but TryToMove returns 1 if we moved, 0 otherwise
+        ;; so we can just add the result to offsetY, since we only want
+        ;; to update it if we moved successfully.
+        sub level.offsetY, eax
 
     GamePlay_not_up:
         ;; Check if down arrow was pressed
         cmp eax, VK_DOWN
         jne GamePlay_not_down
 
-        ;; Face down
-        mov eax, player.bitmap_down
-        mov player.bitmap, eax
-        mov player.direction, 1
-
-        ;; Check if player can actually move down
-        mov ebx, player.posX
-        mov ecx, player.posY
-
-        ;; The tile below the player has y-coord one larger
-        inc ecx
-
-        ;; Check if new square walkable and not occupied
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
-        jz GamePlay_not_down  ; if 0, cannot walk
-
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
-        jnz GamePlay_not_down  ; if 1, occupied and can't walk
-
-        ;; Move player one space down
-        inc level.offsetY
-        inc player.posY
-
-        ;; Update map offset so it looks like the player moved down.
-        ;; Then move player one space down, relative to the map
-        mov eax, player.posX
-        mov ebx, player.posY
-
-        ;; Set new square as occupied
-        INVOKE LevelInfoSetBit, eax, ebx, level, 1
-
-        ;; Set old square (one above) as empty
-        dec ebx
-        INVOKE LevelInfoClearBit, eax, ebx, level, 1
+        INVOKE TryToMove, OFFSET player, level, 1
+        add level.offsetY, eax
 
 
     GamePlay_not_down:
@@ -975,81 +926,16 @@ GamePlay PROC
         cmp eax, VK_LEFT
         jne GamePlay_not_left
 
-        ;; Face left
-        mov eax, player.bitmap_left
-        mov player.bitmap, eax
-        mov player.direction, 2
-
-        ;; Check if player can actually move left
-        mov ebx, player.posX
-        mov ecx, player.posY
-
-        ;; The tile to the left of the player has x-coord one smaller
-        dec ebx
-
-        ;; Check if new square walkable and not occupied
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
-        jz GamePlay_not_left  ; if 0, cannot walk
-
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
-        jnz GamePlay_not_left  ; if 1, occupied and can't walk
-
-        ;; Move player one space left
-        dec level.offsetX
-        dec player.posX
-
-        ;; Update map offset so it looks like the player moved left.
-        ;; Then move player one space left, relative to the map
-        mov eax, player.posX
-        mov ebx, player.posY
-
-        ;; Set new square as occupied
-        INVOKE LevelInfoSetBit, eax, ebx, level, 1
-
-        ;; Set old square (one right) as empty
-        inc eax
-        INVOKE LevelInfoClearBit, eax, ebx, level, 1
-
+        INVOKE TryToMove, OFFSET player, level, 2
+        sub level.offsetX, eax
 
     GamePlay_not_left:
         ;; Check if right arrow was pressed
         cmp eax, VK_RIGHT
         jne GamePlay_not_right
 
-        ;; Face right
-        mov eax, player.bitmap_right
-        mov player.bitmap, eax
-        mov player.direction, 3
-
-        ;; Check if player can actually move right
-        mov ebx, player.posX
-        mov ecx, player.posY
-
-        ;; The tile below the player has x-coord one larger
-        inc ebx
-
-        ;; Check if new square walkable and not occupied
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
-        jz GamePlay_not_right  ; if 0, cannot walk
-
-        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
-        jnz GamePlay_not_right  ; if 1, occupied and can't walk
-
-        ;; Move player one space right
-        inc level.offsetX
-        inc player.posX
-
-        ;; Update map offset so it looks like the player moved right.
-        ;; Then move player one space right, relative to the map
-        mov eax, player.posX
-        mov ebx, player.posY
-
-        ;; Set new square as occupied
-        INVOKE LevelInfoSetBit, eax, ebx, level, 1
-
-        ;; Set old square (one left) as empty
-        dec eax
-        INVOKE LevelInfoClearBit, eax, ebx, level, 1
+        INVOKE TryToMove, OFFSET player, level, 3
+        add level.offsetX, eax
 
     GamePlay_not_right:
 
