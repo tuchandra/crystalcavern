@@ -962,8 +962,10 @@ GamePlay PROC
         INVOKE LevelInfoTestBit, edi, esi, level, 1
         jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
 
-        ;; Now that we know we can, move up
+        ;; Now that we know we can, move and face up
         dec (SPRITE PTR [ebx + ecx]).posY
+        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_up
+        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
 
         INVOKE LevelInfoSetBit, edi, esi, level, 1
         inc esi  ; old pos below, has y-coord larger
@@ -986,8 +988,10 @@ GamePlay PROC
         INVOKE LevelInfoTestBit, edi, esi, level, 1
         jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
 
-        ;; Now that we know we can, move down
+        ;; Now that we know we can, move and face down
         inc (SPRITE PTR [ebx + ecx]).posY
+        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_down
+        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
 
         INVOKE LevelInfoSetBit, edi, esi, level, 1
         dec esi  ; old pos above, has y-coord smaller
@@ -1011,8 +1015,10 @@ GamePlay PROC
         INVOKE LevelInfoTestBit, edi, esi, level, 1
         jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
 
-        ;; Now that we know we can, move left
+        ;; Now that we know we can, move and face left
         dec (SPRITE PTR [ebx + ecx]).posX
+        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_left
+        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
 
         INVOKE LevelInfoSetBit, edi, esi, level, 1
         inc edi  ; old pos right, has x-coord larger
@@ -1038,6 +1044,8 @@ GamePlay PROC
 
         ;; Now that we know we can, move right
         inc (SPRITE PTR [ebx + ecx]).posX
+        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_right
+        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
 
         INVOKE LevelInfoSetBit, edi, esi, level, 1
         dec edi  ; old pos left, has x-coord smaller
@@ -1112,6 +1120,16 @@ GamePlay PROC
         ;; Check if attack active; if not don't do collision detection
         cmp currAttack.active, 1
         jne GamePlay_no_attack_collision_check
+
+        ;; Check if attack hit a wall (is on a nonwalkable square)
+        INVOKE LevelInfoTestBit, currAttack.posX, currAttack.posY, level, 0
+        jnz GamePlay_attack_not_hit_wall  ; if not zero, square is not wall
+
+        ;; Deactivate attack, since it is on a wall
+        mov currAttack.active, 0
+        jmp GamePlay_no_attack_collision_check
+
+    GamePlay_attack_not_hit_wall:
 
         ;; Check if attack hit any enemies
         xor ecx, ecx
