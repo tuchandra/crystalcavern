@@ -37,11 +37,18 @@ currAttack SPRITE< >
 
 level LEVEL< >
 
+;; Status
+GamePaused DWORD 0
+
+
 ;; Messages
 EnemyHealth DWORD 10
 
 fmtStr_enemy_health BYTE "Enemy health: %d/10", 0
 outStr_enemy_health BYTE 256 DUP(0)
+
+fmtStr_pause BYTE "GAME PAUSED", 0
+outStr_pause BYTE 256 DUP(0)
 
 ;; Strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
@@ -89,7 +96,7 @@ PrintRegs PROC USES eax ebx ecx edx
         push OFFSET outStr_eax
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_eax, 10, 400, 0ffh
+        INVOKE DrawStr, OFFSET outStr_eax, 10, 400, 0ffh
 
 
         ;; print ebx
@@ -99,7 +106,7 @@ PrintRegs PROC USES eax ebx ecx edx
         push OFFSET outStr_ebx
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_ebx, 10, 410, 0ffh
+        INVOKE DrawStr, OFFSET outStr_ebx, 10, 410, 0ffh
 
 
         ;; print ecx
@@ -109,7 +116,7 @@ PrintRegs PROC USES eax ebx ecx edx
         push OFFSET outStr_ecx
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_ecx, 10, 420, 0ffh
+        INVOKE DrawStr, OFFSET outStr_ecx, 10, 420, 0ffh
 
         ;; print edx
         pop edx
@@ -118,7 +125,7 @@ PrintRegs PROC USES eax ebx ecx edx
         push OFFSET outStr_edx
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_edx, 10, 430, 0ffh
+        INVOKE DrawStr, OFFSET outStr_edx, 10, 430, 0ffh
 
         ret
 PrintRegs ENDP
@@ -138,7 +145,7 @@ PrintTwoVals PROC USES eax ebx ecx edx first:DWORD, second:DWORD
         push OFFSET outStr_first
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_first, 150, 400, 0ffh
+        INVOKE DrawStr, OFFSET outStr_first, 150, 400, 0ffh
 
         ;; print second val 
         push second
@@ -146,7 +153,7 @@ PrintTwoVals PROC USES eax ebx ecx edx first:DWORD, second:DWORD
         push OFFSET outStr_second
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_second, 150, 410, 0ffh
+        INVOKE DrawStr, OFFSET outStr_second, 150, 410, 0ffh
 
         ret
 PrintTwoVals ENDP
@@ -698,9 +705,38 @@ GameInit ENDP
 GamePlay PROC
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Locals!
+    ;; Check pause
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+        ;; We want pause if the last key pressed was P. From pause, player
+        ;; can exit with any other key (except P again).
+        mov eax, KeyDown
+
+        ;; If P was last key pressed AND not paused, then pause.
+        cmp eax, VK_P
+        jne GamePlay_main
+
+        cmp GamePaused, 0
+        je GamePlay_paused
+
+        ;; If here, P is pressed and we are paused, so unpause and move on
+        mov GamePaused, 0
+        jmp GamePlay_main
+
+
+    GamePlay_paused:
+        ;; Render paused message
+        push OFFSET fmtStr_pause
+        push OFFSET outStr_pause
+        call wsprintf
+        add esp, 8
+        INVOKE DrawStr, OFFSET outStr_pause, 450, 300, 0ffh
+
+        ;; And don't do anything else (update game objects, etc.)
+        jmp GamePlay_end
+
+    GamePlay_main:
+    
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Clear screen; render level; clear right part of screen
     ;; to make room for messages, status info, etc.
@@ -1201,8 +1237,10 @@ GamePlay PROC
         push OFFSET outStr_enemy_health
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, offset outStr_enemy_health, 450, 200, 0ffh
+        INVOKE DrawStr, OFFSET outStr_enemy_health, 450, 200, 0ffh
+        
 
+    GamePlay_end:
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Debug
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
