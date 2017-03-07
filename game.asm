@@ -783,7 +783,6 @@ GamePlay PROC
         INVOKE LevelInfoTestBit, ebx, ecx, level, 0
         jz GamePlay_not_up  ; if 0, not walkable
 
-        ;; Check if new square walkable not occupied
         INVOKE LevelInfoTestBit, ebx, ecx, level, 1
         jnz GamePlay_not_up  ; if 1, occupied and can't walk
 
@@ -928,8 +927,134 @@ GamePlay PROC
     GamePlay_not_right:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Move enemies randomly
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GamePlay_move_enemies:
+        ;; Only move active enemies
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_enemy_move
+
+        ;; Determine if enemy will try to move this frame
+        ;; values -- 0 = move up, 1 = down, 2 = left, 3 = right
+        push ecx
+        push ebx
+
+        invoke nrandom, 40
+
+        pop ebx
+        pop ecx
+
+        cmp eax, 0  ; move up
+        jne GamePlay_no_enemy_move_up
+
+        ;; Try moving sprite up
+        mov edi, (SPRITE PTR [ebx + ecx]).posX
+        mov esi, (SPRITE PTR [ebx + ecx]).posY
+        dec esi
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 0
+        jz GamePlay_no_enemy_move  ; if 0, not walkable
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 1
+        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
+
+        ;; Now that we know we can, move up
+        dec (SPRITE PTR [ebx + ecx]).posY
+
+        INVOKE LevelInfoSetBit, edi, esi, level, 1
+        inc esi  ; old pos below, has y-coord larger
+        INVOKE LevelInfoClearBit, edi, esi, level, 1
+
+        jmp GamePlay_no_enemy_move
+
+    GamePlay_no_enemy_move_up:
+        cmp eax, 1
+        jne GamePlay_no_enemy_move_down
+
+        ;; Try moving sprite down
+        mov edi, (SPRITE PTR [ebx + ecx]).posX
+        mov esi, (SPRITE PTR [ebx + ecx]).posY
+        inc esi
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 0
+        jz GamePlay_no_enemy_move  ; if 0, not walkable
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 1
+        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
+
+        ;; Now that we know we can, move down
+        inc (SPRITE PTR [ebx + ecx]).posY
+
+        INVOKE LevelInfoSetBit, edi, esi, level, 1
+        dec esi  ; old pos above, has y-coord smaller
+        INVOKE LevelInfoClearBit, edi, esi, level, 1
+
+        jmp GamePlay_no_enemy_move
+
+    GamePlay_no_enemy_move_down:
+
+        cmp eax, 2
+        jne GamePlay_no_enemy_move_left
+
+        ;; Try moving sprite left
+        mov edi, (SPRITE PTR [ebx + ecx]).posX
+        mov esi, (SPRITE PTR [ebx + ecx]).posY
+        dec edi
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 0
+        jz GamePlay_no_enemy_move  ; if 0, not walkable
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 1
+        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
+
+        ;; Now that we know we can, move left
+        dec (SPRITE PTR [ebx + ecx]).posX
+
+        INVOKE LevelInfoSetBit, edi, esi, level, 1
+        inc edi  ; old pos right, has x-coord larger
+        INVOKE LevelInfoClearBit, edi, esi, level, 1
+
+        jmp GamePlay_no_enemy_move
+
+    GamePlay_no_enemy_move_left:
+
+        cmp eax, 3
+        jne GamePlay_no_enemy_move
+
+        ;; Otherwise, try moving sprite right
+        mov edi, (SPRITE PTR [ebx + ecx]).posX
+        mov esi, (SPRITE PTR [ebx + ecx]).posY
+        inc edi
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 0
+        jz GamePlay_no_enemy_move  ; if 0, not walkable
+
+        INVOKE LevelInfoTestBit, edi, esi, level, 1
+        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
+
+        ;; Now that we know we can, move right
+        inc (SPRITE PTR [ebx + ecx]).posX
+
+        INVOKE LevelInfoSetBit, edi, esi, level, 1
+        dec edi  ; old pos left, has x-coord smaller
+        INVOKE LevelInfoClearBit, edi, esi, level, 1
+
+        ;; fall through, done with trying to move
+
+    GamePlay_no_enemy_move:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+        jl GamePlay_move_enemies
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Attack -- spacebar control
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        mov eax, KeyPress
         cmp eax, VK_SPACE
         jne GamePlay_not_attack
 
