@@ -622,6 +622,97 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
 
 GenerateEnemy ENDP
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Try to move a sprite in given direction
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DWORD
+
+        ;; Try to move the sprite one square in the particular direction.
+        ;; Check the destination to be walkable and empty, and move there
+        ;; if possible.
+        ;; 
+        ;; Directions: 0 (up), 1 (down), 2 (left), 3 (right)
+
+        mov edi, sprite
+        mov ebx, (SPRITE PTR [edi]).posX
+        mov ecx, (SPRITE PTR [edi]).posY
+
+        ;; Check which direction we're trying to move in
+        cmp direction, 0
+        jne TryToMove_dir1
+
+        ;; Trying to move up -- y-coord one smaller, face up
+        dec ecx
+
+        mov eax, (SPRITE PTR [edi]).bitmap_up
+        mov (SPRITE PTR [edi]).bitmap, eax
+
+        jmp TryToMove_chosen_dir
+
+    TryToMove_dir1:
+
+        cmp direction, 1
+        jne TryToMove_dir2
+
+        ;; Trying to move down -- y-coord one larger, face down
+        inc ecx
+
+        mov eax, (SPRITE PTR [edi]).bitmap_down
+        mov (SPRITE PTR [edi]).bitmap, eax
+
+        jmp TryToMove_chosen_dir
+
+    TryToMove_dir2:
+
+        cmp direction, 2
+        jne TryToMove_dir3
+
+        ;; Trying to move left -- x-coord one smaller
+        dec ebx
+
+        mov eax, (SPRITE PTR [edi]).bitmap_left
+        mov (SPRITE PTR [edi]).bitmap, eax
+
+        jmp TryToMove_chosen_dir
+
+    TryToMove_dir3:
+
+        ;; Trying to move right -- x-coord one larger
+        inc ebx
+
+        mov eax, (SPRITE PTR [edi]).bitmap_right
+        mov (SPRITE PTR [edi]).bitmap, eax
+
+    TryToMove_chosen_dir:
+
+        ;; Check destination walkable
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 0
+        jz TryToMove_done  ; if 0, not walkable
+
+        ;; Check destination empty
+        INVOKE LevelInfoTestBit, ebx, ecx, level, 1
+        jnz TryToMove_done  ; if 1, occupied and can't move
+
+        ;; Now, we know we can move.
+
+        ;; Clear the old location
+        INVOKE LevelInfoClearBit, (SPRITE PTR [edi]).posX, (SPRITE PTR [edi]).posY, level, 1
+
+        ;; Move the sprite
+        mov (SPRITE PTR [edi]).posX, ebx
+        mov (SPRITE PTR [edi]).posY, ecx
+
+        ;; Set the new location
+        INVOKE LevelInfoSetBit, (SPRITE PTR [edi]).posX, (SPRITE PTR [edi]).posY, level, 1
+
+    TryToMove_done:
+
+        ret
+
+TryToMove ENDP
 
 GameInit PROC
     ;; Locals for temporary storage
@@ -972,7 +1063,7 @@ GamePlay PROC
     GamePlay_move_enemies:
         ;; Only move active enemies
         cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_no_enemy_move
+        jne GamePlay_move_done
 
         ;; Determine if enemy will try to move this frame
         ;; values -- 0 = move up, 1 = down, 2 = left, 3 = right
@@ -984,112 +1075,51 @@ GamePlay PROC
         pop ebx
         pop ecx
 
-        cmp eax, 0  ; move up
+        cmp eax, 0  ; up
         jne GamePlay_no_enemy_move_up
 
-        ;; Try moving sprite up
-        mov edi, (SPRITE PTR [ebx + ecx]).posX
-        mov esi, (SPRITE PTR [ebx + ecx]).posY
-        dec esi
+        ;; Try moving up
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToMove, eax, level, 0
 
-        INVOKE LevelInfoTestBit, edi, esi, level, 0
-        jz GamePlay_no_enemy_move  ; if 0, not walkable
-
-        INVOKE LevelInfoTestBit, edi, esi, level, 1
-        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
-
-        ;; Now that we know we can, move and face up
-        dec (SPRITE PTR [ebx + ecx]).posY
-        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_up
-        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
-
-        INVOKE LevelInfoSetBit, edi, esi, level, 1
-        inc esi  ; old pos below, has y-coord larger
-        INVOKE LevelInfoClearBit, edi, esi, level, 1
-
-        jmp GamePlay_no_enemy_move
+        jmp GamePlay_move_done
 
     GamePlay_no_enemy_move_up:
-        cmp eax, 1
+        cmp eax, 1  ; down
         jne GamePlay_no_enemy_move_down
 
-        ;; Try moving sprite down
-        mov edi, (SPRITE PTR [ebx + ecx]).posX
-        mov esi, (SPRITE PTR [ebx + ecx]).posY
-        inc esi
+        ;; Try moving down
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToMove, eax, level, 1
 
-        INVOKE LevelInfoTestBit, edi, esi, level, 0
-        jz GamePlay_no_enemy_move  ; if 0, not walkable
-
-        INVOKE LevelInfoTestBit, edi, esi, level, 1
-        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
-
-        ;; Now that we know we can, move and face down
-        inc (SPRITE PTR [ebx + ecx]).posY
-        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_down
-        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
-
-        INVOKE LevelInfoSetBit, edi, esi, level, 1
-        dec esi  ; old pos above, has y-coord smaller
-        INVOKE LevelInfoClearBit, edi, esi, level, 1
-
-        jmp GamePlay_no_enemy_move
+        jmp GamePlay_move_done
 
     GamePlay_no_enemy_move_down:
-
-        cmp eax, 2
+        cmp eax, 2  ; left
         jne GamePlay_no_enemy_move_left
 
-        ;; Try moving sprite left
-        mov edi, (SPRITE PTR [ebx + ecx]).posX
-        mov esi, (SPRITE PTR [ebx + ecx]).posY
-        dec edi
+        ;; Try moving left
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToMove, eax, level, 2
 
-        INVOKE LevelInfoTestBit, edi, esi, level, 0
-        jz GamePlay_no_enemy_move  ; if 0, not walkable
-
-        INVOKE LevelInfoTestBit, edi, esi, level, 1
-        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
-
-        ;; Now that we know we can, move and face left
-        dec (SPRITE PTR [ebx + ecx]).posX
-        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_left
-        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
-
-        INVOKE LevelInfoSetBit, edi, esi, level, 1
-        inc edi  ; old pos right, has x-coord larger
-        INVOKE LevelInfoClearBit, edi, esi, level, 1
-
-        jmp GamePlay_no_enemy_move
+        jmp GamePlay_move_done
 
     GamePlay_no_enemy_move_left:
 
         cmp eax, 3
-        jne GamePlay_no_enemy_move
+        jne GamePlay_move_done
 
-        ;; Otherwise, try moving sprite right
-        mov edi, (SPRITE PTR [ebx + ecx]).posX
-        mov esi, (SPRITE PTR [ebx + ecx]).posY
-        inc edi
+        ;; Try moving right
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToMove, eax, level, 3
 
-        INVOKE LevelInfoTestBit, edi, esi, level, 0
-        jz GamePlay_no_enemy_move  ; if 0, not walkable
 
-        INVOKE LevelInfoTestBit, edi, esi, level, 1
-        jnz GamePlay_no_enemy_move  ; if 1, occupied and can't move
-
-        ;; Now that we know we can, move right
-        inc (SPRITE PTR [ebx + ecx]).posX
-        mov eax, (SPRITE PTR [ebx + ecx]).bitmap_right
-        mov (SPRITE PTR [ebx + ecx]).bitmap, eax
-
-        INVOKE LevelInfoSetBit, edi, esi, level, 1
-        dec edi  ; old pos left, has x-coord smaller
-        INVOKE LevelInfoClearBit, edi, esi, level, 1
-
-        ;; fall through, done with trying to move
-
-    GamePlay_no_enemy_move:
+    GamePlay_move_done:
+        ;; Fall through, done trying to move
 
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
