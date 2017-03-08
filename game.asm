@@ -32,8 +32,10 @@ includelib \masm32\lib\masm32.lib
 
 ;; Sprites
 player SPRITE< >
-enemies SPRITE 15 DUP(<>)
 currAttack SPRITE< >
+enemies SPRITE 5 DUP(<>)  ;15
+treasures SPRITE 12 DUP(<>)
+
 
 level LEVEL< >
 
@@ -44,6 +46,7 @@ TARGETED_ENEMY_COOLDOWN DWORD 3
 
 ;; Status
 GamePaused DWORD 0
+BoxesSpawned DWORD 0
 
 
 ;; Messages
@@ -941,6 +944,75 @@ GameInit PROC
         mov player.bitmap_right, OFFSET PKMN3_RIGHT
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize treasures
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Initialize each treasure with sprites, but do not activate
+        ;; them yet. There's no good way to do this, since they all
+        ;; need different sprites ...
+
+        mov ecx, OFFSET treasures
+        mov ebx, TYPE SPRITE
+
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX1
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX2
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX3
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX4
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX5
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX6
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX7
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX8
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX9
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX10
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX11
+        mov (SPRITE PTR [ecx]).active, 0
+        add ecx, ebx
+        
+        mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX12
+        mov (SPRITE PTR [ecx]).active, 0
+
+        ;; Initialize the first treasure to have a fixed position
+        ;; near the player.
+        mov ecx, OFFSET treasures
+        mov (SPRITE PTR [ecx]).posX, 10 ;12
+        mov (SPRITE PTR [ecx]).posY, 17
+
+        mov (SPRITE PTR [ecx]).active, 1
+        INVOKE LevelInfoSetBit, (SPRITE PTR [ecx]).posX, (SPRITE PTR [ecx]).posY, level, 1
+
+        inc BoxesSpawned       
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -949,7 +1021,7 @@ GameInit PROC
         xor ecx, ecx
         mov ebx, OFFSET enemies
 
-    GameInit_enemy_position::
+    GameInit_enemy_position:
         ;; push these so they don't get overwritten by 
         push ebx
         push ecx
@@ -965,6 +1037,7 @@ GameInit PROC
         cmp ecx, SIZEOF enemies
 
         jl GameInit_enemy_position
+
 
         ret
 GameInit ENDP
@@ -1029,6 +1102,29 @@ GamePlay PROC
         cmp ecx, SIZEOF enemies
 
         jl GamePlay_render_enemies
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Render treasures
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+        xor ecx, ecx
+        mov ebx, OFFSET treasures
+    
+    GamePlay_render_treasures:
+
+        ;; Only render active treasures
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_render_treasure
+
+        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+
+    GamePlay_no_render_treasure:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF treasures
+
+        jl GamePlay_render_treasures
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render other sprites (player, attack)
@@ -1286,6 +1382,48 @@ GamePlay PROC
         mov (SPRITE PTR [ebx + ecx]).active, 0
         INVOKE LevelInfoClearBit, (SPRITE PTR [ebx + ecx]).posX, (SPRITE PTR [ebx + ecx]).posY, level, 1
 
+        ;; On enemy death, maybe drop a treasure
+        push ebx
+        push ecx
+        INVOKE nrandom, 2
+        pop ecx
+        pop ebx
+
+        cmp eax, 0
+        jne GamePlay_enemy_not_dead
+
+        ;; Spawn a treasure somewhere
+        ;; Get valid position -- very klugey way of doing this
+        ;; Basically, GenerateEnemy does what we want, except it assigns
+        ;; the sprite an enemy sprite. Let's store the sprite and replace
+        ;; it. 
+        ;; 
+        ;; (This is a sign I should have designed GenerateEnemy better,
+        ;; but hindsight is 20/20. Also, at the time, I didn't know how
+        ;; I was going to implement treasures / items, if at all. I also
+        ;; am sick of rewriting functions at this point.)
+
+        ;; Max 12 boxes can be spawned
+        cmp BoxesSpawned, 12
+        jnl GamePlay_enemy_not_dead
+
+        ;; Address of next box
+        mov eax, TYPE SPRITE
+        imul BoxesSpawned
+        add eax, OFFSET treasures
+
+        ;; Preserve sprite and address
+        push (SPRITE PTR [eax]).bitmap
+        push eax
+        INVOKE GenerateEnemy, eax, level
+        pop eax
+
+        ;; Restore box sprite; set as active
+        pop (SPRITE PTR [eax]).bitmap
+        mov (SPRITE PTR [eax]).active, 1
+
+        inc BoxesSpawned
+
     GamePlay_enemy_not_dead:
 
 
@@ -1359,7 +1497,6 @@ GamePlay PROC
         INVOKE DrawStr, OFFSET str_arrows, 472, 380, 0ffh
         INVOKE DrawStr, OFFSET str_space, 480, 395, 0ffh
         INVOKE DrawStr, OFFSET str_p, 512, 410, 0ffh
-        
 
     GamePlay_end:
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1367,6 +1504,10 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;INVOKE PrintTwoVals, enemies.posX, enemies.posY
+;        mov ecx, OFFSET treasures
+;        mov (SPRITE PTR [ecx]).posX, 7
+;        mov (SPRITE PTR [ecx]).posY, 8
+;        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ecx]), level
 
 
 	ret
