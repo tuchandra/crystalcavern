@@ -39,17 +39,20 @@ includelib \masm32\lib\masm32.lib
 PLAYER_COOLDOWN DWORD 1
 WANDERING_ENEMY_COOLDOWN DWORD 3
 TARGETED_ENEMY_COOLDOWN DWORD 3
-ATK_COOLDOWN DWORD 10
+ATK_COOLDOWN DWORD 20
 
 TREASURE_DROP_CHANCE DWORD 2
 
 ENEMY_SPAWN_RATE DWORD 100
+BERRY_SPAWN_RATE DWORD 300
+
+PLAYER_MAX_HEALTH DWORD 20
 
 ;; Sprites
 player SPRITE< >
-currAttack SPRITE< >
 musicTile SPRITE< >
 enemies SPRITE 5 DUP(<>)  ;15
+berries SPRITE 6 DUP(<>)
 treasures SPRITE 12 DUP(<>)
 
 ;; Array of pointers to bitmaps of collected treasures
@@ -69,7 +72,7 @@ SCORE DWORD 0
 ;; Messages
 str_dungeon BYTE "Cave of the Moon", 0
 
-fmtStr_player_health BYTE "Player health: %d/20", 0
+fmtStr_player_health BYTE "Player health: %d/%d", 0
 outStr_player_health BYTE 256 DUP(0)
 
 fmtStr_score BYTE "Score: %d", 0
@@ -651,7 +654,7 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         ;; Set bit 1 in currLevel.info
         INVOKE LevelInfoSetBit, tempX, tempY, currLevel, 1
 
-        ;; Set as active; reset health; make them stay in one place for a while
+        ;; Set as active; reset health
         mov (SPRITE PTR [ebx]).active, 1
         mov (SPRITE PTR [ebx]).health, 10
 
@@ -672,7 +675,7 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         mov (SPRITE PTR [ebx]).direction, 1
 
         mov (SPRITE PTR [ebx]).attack_active, 0
-        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTK1
+        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTACK2
 
         jmp GenerateEnemy_done
 
@@ -687,7 +690,7 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         mov (SPRITE PTR [ebx]).direction, 1
 
         mov (SPRITE PTR [ebx]).attack_active, 0
-        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTK1
+        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTACK1
 
 
 
@@ -697,6 +700,65 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
 
 GenerateEnemy ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Generate item at random valid position
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+GenerateItem PROC USES ebx ecx sprite:PTR SPRITE, item:PTR EECS205BITMAP, currLevel:LEVEL
+
+    LOCAL tempX:DWORD, tempY:DWORD
+
+    ;; We need a position that has the 0th bit set (so that it is
+    ;; a walkable square), the 1st bit clear (so that it is not
+    ;; occupied), and the 2nd bit clear (so that it does not have 
+    ;; an item already)
+    ;;
+    ;; While we don't have a valid position, generate a new one
+
+    GenerateItem_position_gen:
+
+        INVOKE nrandom, currLevel.sizeX
+        mov tempX, eax
+
+        INVOKE nrandom, currLevel.sizeY
+        mov tempY, eax
+
+        ;; If 0th bit clear, not walkable; try again
+        INVOKE LevelInfoTestBit, tempX, tempY, currLevel, 0
+        jz GenerateItem_position_gen
+
+        ;; If 1st bit set, it's occupied; try again
+        INVOKE LevelInfoTestBit, tempX, tempY, currLevel, 1
+        jnz GenerateItem_position_gen
+
+        ;; If 2nd bit set, it's got an item; try again
+        INVOKE LevelInfoTestBit, tempX, tempY, currLevel, 2
+        jnz GenerateItem_position_gen
+
+        ;; Reaching here means we have a valid position
+        mov ebx, sprite
+        mov ecx, item
+
+        ;; Set sprite position
+        mov eax, tempX
+        mov (SPRITE PTR [ebx]).posX, eax
+
+        mov eax, tempY
+        mov (SPRITE PTR [ebx]).posY, eax
+
+        ;; Set sprite bitmap; set as active
+        mov (SPRITE PTR [ebx]).bitmap, ecx
+        mov (SPRITE PTR [ebx]).active, 1
+
+        ;; Set bit 2 in currLevel.info
+        INVOKE LevelInfoSetBit, tempX, tempY, currLevel, 2
+
+        ret
+
+GenerateItem ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1050,7 +1112,7 @@ GameInit PROC
         invoke nseed, eax
 
         ;; Initialize attack sprite, set as inactive
-        mov player.attack_bitmap, OFFSET ATTK1
+        mov player.attack_bitmap, OFFSET ATTACK3
         mov player.attack_active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1081,7 +1143,8 @@ GameInit PROC
         mov player.direction, 3
 
         ;; Set health
-        mov player.health, 20
+        mov eax, PLAYER_MAX_HEALTH
+        mov player.health, eax
 
         ;; Set all sprites
         mov player.bitmap_up, OFFSET PKMN3_UP
@@ -1170,19 +1233,38 @@ GameInit PROC
         inc TreasuresSpawned
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Initialize music note powerup
+    ;; Initialize berry powerups 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; This is different than the treasure boxes, because we
+        ;; want to initialize and activate each of the berries.
+
+        mov ecx, OFFSET berries
+        mov ebx, TYPE SPRITE
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY1, level
+        add ecx, ebx
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY2, level
+        add ecx, ebx
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY3, level
+        add ecx, ebx
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY4, level
+        add ecx, ebx
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY5, level
+        add ecx, ebx
+
+        INVOKE GenerateItem, ecx, OFFSET BERRY6, level
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize music note tile
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         mov ebx, OFFSET musicTile
-
-        push ebx
-        INVOKE GenerateEnemy, ebx, level
-        pop ebx
-
-        mov (SPRITE PTR [ebx]).bitmap, OFFSET MUSIC
-
-        ;; Set as not occupied
-        INVOKE LevelInfoClearBit, (SPRITE PTR [ebx]).posX, (SPRITE PTR [ebx]).posY, level, 1
+        INVOKE GenerateItem, ebx, OFFSET MUSIC, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
@@ -1262,7 +1344,7 @@ GamePlay PROC
         INVOKE RenderLevel, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render treasures and music tile
+    ;; Render treasures, berries, and music tile
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
         xor ecx, ecx
@@ -1284,7 +1366,29 @@ GamePlay PROC
         jl GamePlay_render_treasures
 
         ;; Done rendering treasures.
+
+
+        xor ecx, ecx
+        mov ebx, OFFSET berries
+
+    GamePlay_render_berries:
+
+        ;; Only render active berries
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_render_berry
+
+        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+
+    GamePlay_no_render_berry:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF berries
+
+        jl GamePlay_render_berries
+
+        ;; Done rendering berries.
     
+
         ;; Only render music tile if active
         cmp musicTile.active, 1
         jne GamePlay_no_render_music
@@ -1428,7 +1532,7 @@ GamePlay PROC
         mov eax, ebx
         add eax, ecx
         INVOKE SpriteDistance, eax, OFFSET player
-        cmp eax, 10
+        cmp eax, 9
         jg GamePlay_move_randomly
 
         ;; Decide direction to move from enemy to player
@@ -1546,16 +1650,6 @@ GamePlay PROC
         ;; Activate attack sprite
         mov player.attack_active, 1
 
-        ;; Decrement score to discourage spamming attacks -- but don't let
-        ;; it go negative
-        dec SCORE
-        cmp SCORE, 0
-        jg GamePlay_score_not_negative
-
-        mov SCORE, 0
-
-    GamePlay_score_not_negative:
-
         ;; Set attack position to current player
         mov eax, player.posX
         mov player.attack_posX, eax
@@ -1653,7 +1747,7 @@ GamePlay PROC
 
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Collision detection (attack and enemies)
+    ;; Collision detection (player attack and enemies)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Check if attack active; if not don't do collision detection
@@ -1666,7 +1760,17 @@ GamePlay PROC
 
         ;; Deactivate attack, since it is on a wall, and decrease score
         mov player.attack_active, 0
-        jmp GamePlay_no_attack_collision_check
+
+        ;; Don't let score go negative
+        dec SCORE
+        cmp SCORE, 0
+        jg GamePlay_score_not_negative
+
+        mov SCORE, 0
+
+    GamePlay_score_not_negative:
+
+        jmp GamePlay_no_attack_collision_check        
 
     GamePlay_attack_not_hit_wall:
 
@@ -1740,17 +1844,10 @@ GamePlay PROC
         imul TreasuresSpawned
         add eax, OFFSET treasures
 
-        ;; Preserve sprite and address
-        push (SPRITE PTR [eax]).bitmap
+        ;; Preserve address; generate location
         push eax
-        INVOKE GenerateEnemy, eax, level
+        INVOKE GenerateItem, eax, (SPRITE PTR [eax]).bitmap, level
         pop eax
-
-        ;; Restore box sprite; set as active; clear occupied bit, because
-        ;; we can walk on treasures.
-        pop (SPRITE PTR [eax]).bitmap
-        mov (SPRITE PTR [eax]).active, 1
-        INVOKE LevelInfoClearBit, (SPRITE PTR [eax]).posX, (SPRITE PTR [eax]).posY, level, 1
 
         inc TreasuresSpawned
 
@@ -1765,10 +1862,12 @@ GamePlay PROC
     GamePlay_no_attack_collision_check:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Collision detection (player and trasures)
+    ;; Item pickup (player and trasures)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; Check if player is standing on a treasure; if so, pick it up
+        ;; Basically, for each treasure, check if player is standing
+        ;; on it. If so, pick it up
+
         xor ecx, ecx
         mov ebx, OFFSET treasures
 
@@ -1787,7 +1886,7 @@ GamePlay PROC
         jne GamePlay_treasure_check_done
 
         ;; If here, player is standing on active treasure.
-        ;; Deactivate it; add to collected treasures; give player 50 points.
+        ;; Deactivate it; give player 50 points; add to collected treasures
         mov (SPRITE PTR [ebx + ecx]).active, 0
         add SCORE, 50
 
@@ -1807,9 +1906,76 @@ GamePlay PROC
 
         jl GamePlay_check_treasures_loop
 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Item pickup (player and berries)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Same as with treasures -- for each berry, check if
+        ;; player is standing on it, then do things if so.
+
+        xor ecx, ecx
+        mov ebx, OFFSET berries
+
+    GamePlay_check_berries_loop:
+        ;; Only check active berries
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_berry_not_active
+
+        ;; Check if player is standing on berry
+        mov eax, (SPRITE PTR [ebx + ecx]).posX
+        cmp player.posX, eax
+        jne GamePlay_berry_check_done
+
+        mov eax, (SPRITE PTR [ebx + ecx]).posY
+        cmp player.posY, eax
+        jne GamePlay_berry_check_done
+
+        ;; If here, player is standing on active berry
+        ;; Deactivate; restore 3 health to player; give player 20 points;
+        ;; clear the item bit of level.info
+        mov (SPRITE PTR [ebx + ecx]).active, 0
+        add player.health, 3
+        add SCORE, 20
+        INVOKE LevelInfoClearBit, player.posX, player.posY, level, 2
+
+        ;; If the berry would put player above max health, increase their
+        ;; max health (permanent enhancement)
+        mov eax, PLAYER_MAX_HEALTH
+        cmp player.health, eax
+        jl GamePlay_player_health_check_done
+
+        ;; If here, player's health too high, reset to max
+        mov eax, player.health
+        mov PLAYER_MAX_HEALTH, eax
+
+    GamePlay_player_health_check_done:
+        
+        jmp GamePlay_berry_check_done
+
+    GamePlay_berry_not_active:
+
+        push ebx
+        push ecx
+        invoke nrandom, BERRY_SPAWN_RATE
+        pop ecx
+        pop ebx
+
+        cmp eax, 0
+        jne GamePlay_berry_check_done
+
+        ;; If here, generate a new berry
+        mov eax, ebx
+        add eax, ecx
+        INVOKE GenerateItem, eax, (SPRITE PTR [eax]).bitmap, level
+
+    GamePlay_berry_check_done:
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF berries
+
+        jl GamePlay_check_berries_loop
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Collision detection (player and music tile)
+    ;; Item pickup, kinda (player and music tile)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         mov ebx, OFFSET musicTile
@@ -1827,10 +1993,11 @@ GamePlay PROC
         cmp player.posY, eax
         jne GamePlay_music_check_done
 
-        ;; If here, player is on a music tile!
-        ;; Deactivate it and start playing music
+        ;; If here, player is on the music tile!
+        ;; Deactivate it, start playing music, give player 100 points for fun
         mov (SPRITE PTR [ebx]).active, 0
         INVOKE PlaySound, offset CrystalCaveMusic, 0, SND_FILENAME OR SND_ASYNC
+        add SCORE, 100
 
     GamePlay_music_check_done:
 
@@ -1879,8 +2046,6 @@ GamePlay PROC
 
         jl GamePlay_update_enemy_attacks
 
-
-
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Display messages
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1894,11 +2059,12 @@ GamePlay PROC
         INVOKE DrawLine, 442, 60, 620, 60, 0ffh
 
         ;; Player health, score, enemy health
+        push PLAYER_MAX_HEALTH
         push player.health
         push OFFSET fmtStr_player_health
         push OFFSET outStr_player_health
         call wsprintf
-        add esp, 12
+        add esp, 16
         INVOKE DrawStr, OFFSET outStr_player_health, 450, 80, 0ffh
 
         push SCORE

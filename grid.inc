@@ -29,6 +29,12 @@ _LEVEL STRUCT
     ;;         - set if not empty
     ;;         - clear if space is empty (nothing on it) or not ground
     ;;         -> to walk somewhere, need bit 0 set, bit 1 clear
+    ;; bit 2: has item?
+    ;;         - is there an item there?
+    ;;         - set if there's a treasure box / berry there
+    ;;         - clear otherwise
+    ;;         -> we still want these to be walkable, but we don't want items
+    ;;            spawning on top of each other
     ;; ...
     
     info        DWORD   ?
