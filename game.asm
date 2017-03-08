@@ -61,6 +61,7 @@ level LEVEL< >
 
 ;; Status info
 GamePaused DWORD 0
+GameOver DWORD 0
 TreasuresSpawned DWORD 0
 TreasuresCollected DWORD 0
 SCORE DWORD 0
@@ -1246,6 +1247,14 @@ GamePlay PROC
     GamePlay_main:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Check game over
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; If game is over, don't run the main loop
+        cmp GameOver, 1
+        je GamePlay_end
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Clear screen; render level
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1946,6 +1955,7 @@ GamePlay PROC
         jne GamePlay_did_not_win
 
         INVOKE BasicBlit, OFFSET WIN, 216, 200
+        mov GameOver, 1
 
     GamePlay_did_not_win:
 
@@ -1957,8 +1967,9 @@ GamePlay PROC
         jne GamePlay_did_not_lose
 
         INVOKE BasicBlit, OFFSET LOSE, 216, 200
+        mov GameOver, 1
 
-    GamePlay_did_not_win:
+    GamePlay_did_not_lose:
 
     GamePlay_end:
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
