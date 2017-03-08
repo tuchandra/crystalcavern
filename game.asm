@@ -30,6 +30,15 @@ includelib \masm32\lib\masm32.lib
 
 .DATA
 
+;; Cooldowns and constants
+PLAYER_COOLDOWN DWORD 1
+WANDERING_ENEMY_COOLDOWN DWORD 3
+TARGETED_ENEMY_COOLDOWN DWORD 3
+
+TREASURE_DROP_CHANCE DWORD 2
+
+ENEMY_SPAWN_RATE DWORD 100
+
 ;; Sprites
 player SPRITE< >
 currAttack SPRITE< >
@@ -40,12 +49,6 @@ treasures SPRITE 12 DUP(<>)
 collected_treasures DWORD 12 DUP(OFFSET BOX0)
 
 level LEVEL< >
-
-;; Cooldowns and constants
-PLAYER_COOLDOWN DWORD 1
-WANDERING_ENEMY_COOLDOWN DWORD 2
-TARGETED_ENEMY_COOLDOWN DWORD 3
-TREASURE_DROP_CHANCE DWORD 2
 
 ;; Status
 GamePaused DWORD 0
@@ -607,6 +610,10 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         ;; Set bit 1 in currLevel.info
         INVOKE LevelInfoSetBit, tempX, tempY, currLevel, 1
 
+        ;; Set as active; reset health; make them stay in one place for a while
+        mov (SPRITE PTR [ebx]).active, 1
+        mov (SPRITE PTR [ebx]).health, 10
+
         ;; Select sprite
         push ebx
         
@@ -1104,11 +1111,28 @@ GamePlay PROC
 
         ;; Only render active enemies
         cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_no_render_enemy
+        jne GamePlay_enemy_not_active
 
         INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+        jmp GamePlay_done_rendering_enemy
 
-    GamePlay_no_render_enemy:
+    GamePlay_enemy_not_active:
+        ;; Possibly spawn a new enemy by activating this one
+        push ecx
+        push ebx
+        invoke nrandom, ENEMY_SPAWN_RATE
+        pop ebx
+        pop ecx
+
+        cmp eax, 0
+        jne GamePlay_done_rendering_enemy
+
+        ;; If here, generate a new enemy where the old one used to be
+        mov eax, ebx
+        add eax, ecx
+        INVOKE GenerateEnemy, eax, level
+
+    GamePlay_done_rendering_enemy:
 
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
@@ -1357,8 +1381,9 @@ GamePlay PROC
         INVOKE LevelInfoTestBit, currAttack.posX, currAttack.posY, level, 0
         jnz GamePlay_attack_not_hit_wall  ; if not zero, square is not wall
 
-        ;; Deactivate attack, since it is on a wall
+        ;; Deactivate attack, since it is on a wall, and decrease score
         mov currAttack.active, 0
+        dec SCORE
         jmp GamePlay_no_attack_collision_check
 
     GamePlay_attack_not_hit_wall:
@@ -1394,15 +1419,12 @@ GamePlay PROC
         mov (SPRITE PTR [ebx + ecx]).active, 0
         INVOKE LevelInfoClearBit, (SPRITE PTR [ebx + ecx]).posX, (SPRITE PTR [ebx + ecx]).posY, level, 1
 
-        ;; Increment score by between 10 and 20 points
-        push ebx
-        push ecx
-        INVOKE nrandom, 10
-
-        add eax, 10
-        add SCORE, eax
+        ;; Increment score by 10 points
+        add SCORE, 10
 
         ;; And on death, maybe drop a treasure
+        push ebx
+        push ecx
         INVOKE nrandom, TREASURE_DROP_CHANCE
         pop ecx
         pop ebx
