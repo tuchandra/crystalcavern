@@ -61,6 +61,7 @@ level LEVEL< >
 ;; Status info
 GamePaused DWORD 0
 TreasuresSpawned DWORD 0
+TreasuresCollected DWORD 0
 SCORE DWORD 0
 
 ;; Messages
@@ -77,6 +78,9 @@ fmtStr_enemy_health BYTE "Enemy health: %d/10", 0
 outStr_enemy_health BYTE 256 DUP(0)
 
 str_treasures BYTE "Treasures Collected", 0
+
+fmtStr_treasures_left BYTE "Collect %d more to win!", 0
+outStr_treasures_left BYTE 256 DUP(0)
 
 str_arrows BYTE "ARROWS: move", 0
 str_space BYTE "SPACE: attack", 0
@@ -1116,14 +1120,13 @@ GamePlay PROC
         jmp GamePlay_end
 
     GamePlay_main:
-    
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Clear screen; render level
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         INVOKE ClearEntireScreen
         INVOKE RenderLevel, level
-
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render treasures and music tile
@@ -1555,6 +1558,8 @@ GamePlay PROC
         mov edx, (SPRITE PTR [ebx + ecx]).bitmap
         mov [collected_treasures + eax], edx
 
+        inc TreasuresCollected
+
     GamePlay_treasure_check_done:
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF treasures
@@ -1659,11 +1664,33 @@ GamePlay PROC
         INVOKE BasicBlit, [collected_treasures + 40], 575, 210
         INVOKE BasicBlit, [collected_treasures + 44], 605, 210
 
+        ;; Print how many treasures left
+        mov eax, 12
+        sub eax, TreasuresCollected
+        push eax
+        push OFFSET fmtStr_treasures_left
+        push OFFSET outStr_treasures_left
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, OFFSET outStr_treasures_left, 440, 240, 0ffh
+
+
         ;; Controls
         INVOKE DrawLine, 442, 350, 620, 350, 0ffh
         INVOKE DrawStr, OFFSET str_arrows, 472, 380, 0ffh
         INVOKE DrawStr, OFFSET str_space, 480, 395, 0ffh
         INVOKE DrawStr, OFFSET str_p, 512, 410, 0ffh
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Check if player won
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        cmp TreasuresCollected, 12
+        jne GamePlay_did_not_win
+
+        INVOKE BasicBlit, OFFSET WIN, 216, 200
+
+    GamePlay_did_not_win:
 
     GamePlay_end:
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

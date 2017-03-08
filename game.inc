@@ -97,6 +97,7 @@ EXTERNDEF BOX0:EECS205BITMAP
 EXTERNDEF MUSIC:EECS205BITMAP
 
 EXTERNDEF PAUSE:EECS205BITMAP
+EXTERNDEF WIN:EECS205BITMAP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sprite definitions
