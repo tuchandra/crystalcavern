@@ -64,7 +64,6 @@ TreasuresSpawned DWORD 0
 SCORE DWORD 0
 
 ;; Messages
-str_pause BYTE "GAME PAUSED", 0
 str_dungeon BYTE "Cave of the Moon", 0
 
 fmtStr_player_health BYTE "Player health: %d/10", 0
@@ -1111,7 +1110,7 @@ GamePlay PROC
 
     GamePlay_paused:
         ;; Render paused message
-        INVOKE DrawStr, OFFSET str_pause, 450, 300, 0ffh
+        INVOKE BasicBlit, OFFSET PAUSE, 216, 200
 
         ;; And don't do anything else (update game objects, etc.)
         jmp GamePlay_end

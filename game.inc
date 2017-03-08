@@ -96,6 +96,8 @@ EXTERNDEF BOX0:EECS205BITMAP
 
 EXTERNDEF MUSIC:EECS205BITMAP
 
+EXTERNDEF PAUSE:EECS205BITMAP
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sprite definitions
 ;; TODO health, etc.
