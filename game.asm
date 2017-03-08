@@ -1050,8 +1050,8 @@ GameInit PROC
         invoke nseed, eax
 
         ;; Initialize attack sprite, set as inactive
-        mov currAttack.bitmap, OFFSET ATTK1
-        mov currAttack.active, 0
+        mov player.attack_bitmap, OFFSET ATTK1
+        mov player.attack_active, 0
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize level
@@ -1350,10 +1350,10 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Only render attack if active
-        cmp currAttack.active, 1
+        cmp player.attack_active, 1
         jne GamePlay_no_render_attack
         
-        INVOKE RenderSpriteOnLevel, currAttack, level
+        INVOKE RenderAttackOnLevel, player, level
 
     GamePlay_no_render_attack:
 
@@ -1518,7 +1518,6 @@ GamePlay PROC
         cmp eax, 0
         jne GamePlay_enemy_no_attack
 
-
         ;; Check if adjacent to player
         mov eax, ebx
         add eax, ecx
@@ -1545,7 +1544,7 @@ GamePlay PROC
         jne GamePlay_not_attack
 
         ;; Activate attack sprite
-        mov currAttack.active, 1
+        mov player.attack_active, 1
 
         ;; Decrement score to discourage spamming attacks -- but don't let
         ;; it go negative
@@ -1559,10 +1558,10 @@ GamePlay PROC
 
         ;; Set attack position to current player
         mov eax, player.posX
-        mov currAttack.posX, eax
+        mov player.attack_posX, eax
 
         mov eax, player.posY
-        mov currAttack.posY, eax
+        mov player.attack_posY, eax
 
         ;; Initialize attack velocity; will be in some direction later
         mov ebx, 1
@@ -1574,30 +1573,30 @@ GamePlay PROC
         jne GamePlay_attack_not_up
 
         neg ebx
-        mov currAttack.velX, 0
-        mov currAttack.velY, ebx
+        mov player.attack_velX, 0
+        mov player.attack_velY, ebx
 
     GamePlay_attack_not_up:
         cmp eax, 1
         jne GamePlay_attack_not_down
 
-        mov currAttack.velX, 0
-        mov currAttack.velY, ebx
+        mov player.attack_velX, 0
+        mov player.attack_velY, ebx
 
     GamePlay_attack_not_down:
         cmp eax, 2
         jne GamePlay_attack_not_left
 
         neg ebx
-        mov currAttack.velX, ebx
-        mov currAttack.velY, 0
+        mov player.attack_velX, ebx
+        mov player.attack_velY, 0
 
     GamePlay_attack_not_left:
         cmp eax, 3
         jne GamePlay_not_attack
 
-        mov currAttack.velX, ebx
-        mov currAttack.velY, 0
+        mov player.attack_velX, ebx
+        mov player.attack_velY, 0
 
     GamePlay_not_attack:
 
@@ -1658,15 +1657,15 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Check if attack active; if not don't do collision detection
-        cmp currAttack.active, 1
+        cmp player.attack_active, 1
         jne GamePlay_no_attack_collision_check
 
         ;; Check if attack hit a wall (is on a nonwalkable square)
-        INVOKE LevelInfoTestBit, currAttack.posX, currAttack.posY, level, 0
+        INVOKE LevelInfoTestBit, player.attack_posX, player.attack_posY, level, 0
         jnz GamePlay_attack_not_hit_wall  ; if not zero, square is not wall
 
         ;; Deactivate attack, since it is on a wall, and decrease score
-        mov currAttack.active, 0
+        mov player.attack_active, 0
         jmp GamePlay_no_attack_collision_check
 
     GamePlay_attack_not_hit_wall:
@@ -1678,12 +1677,18 @@ GamePlay PROC
     GamePlay_enemy_collision_loop:
         ;; Check if enemy active; if not, don't do collision detection
         cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_enemy_no_collision
+        jne GamePlay_player_attack_no_collision
 
-        ;; Do the collision detection
-        INVOKE CheckIntersectSprite, currAttack, (SPRITE PTR [ebx + ecx])
-        cmp eax, 0
-        jz GamePlay_enemy_no_collision
+        ;; Do the collision detection -- we're on a grid, so just check if the
+        ;; squares are the same
+
+        mov eax, player.attack_posX
+        cmp (SPRITE PTR [ebx + ecx]).posX, eax
+        jne GamePlay_player_attack_no_collision
+
+        mov eax, player.attack_posY
+        cmp (SPRITE PTR [ebx + ecx]).posY, eax
+        jne GamePlay_player_attack_no_collision
 
         ;; On collision behavior
         ;; Set EnemyHealth for rendering at end of frame
@@ -1692,7 +1697,7 @@ GamePlay PROC
         mov EnemyHealth, eax
 
         ;; Deactivate attack
-        mov currAttack.active, 0
+        mov player.attack_active, 0
 
         ;; Check if enemy is dead
         cmp EnemyHealth, 0
@@ -1751,7 +1756,7 @@ GamePlay PROC
 
     GamePlay_enemy_not_dead:
 
-    GamePlay_enemy_no_collision:
+    GamePlay_player_attack_no_collision:
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
 
@@ -1833,18 +1838,18 @@ GamePlay PROC
     ;; Update attacks
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; Update currAttack position, if active
-        cmp currAttack.active, 1
-        jne GamePlay_curr_attack_not_active
+        ;; Update player attack position, if active
+        cmp player.attack_active, 1
+        jne GamePlay_player_attack_not_active
 
         ;; Add velocity to position
-        mov eax, currAttack.velX
-        add currAttack.posX, eax
+        mov eax, player.attack_velX
+        add player.attack_posX, eax
 
-        mov eax, currAttack.velY
-        add currAttack.posY, eax
+        mov eax, player.attack_velY
+        add player.attack_posY, eax
 
-    GamePlay_curr_attack_not_active:
+    GamePlay_player_attack_not_active:
 
         ;; Check enemy attacks
         xor ecx, ecx
