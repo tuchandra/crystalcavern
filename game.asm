@@ -17,6 +17,11 @@ include blit.inc
 include grid.inc
 include game.inc
 
+;; For music
+include \masm32\include\windows.inc
+include \masm32\include\winmm.inc
+includelib \masm32\lib\winmm.lib
+
 ;; Has keycodes
 include keys.inc
 
@@ -42,15 +47,18 @@ ENEMY_SPAWN_RATE DWORD 100
 ;; Sprites
 player SPRITE< >
 currAttack SPRITE< >
+musicTile SPRITE< >
 enemies SPRITE 5 DUP(<>)  ;15
 treasures SPRITE 12 DUP(<>)
 
-;; array of pointers to bitmaps
+;; Array of pointers to bitmaps of collected treasures
+;; initialized as the treasure silhouttes
 collected_treasures DWORD 12 DUP(OFFSET BOX0)
 
+;; Level
 level LEVEL< >
 
-;; Status
+;; Status info
 GamePaused DWORD 0
 TreasuresSpawned DWORD 0
 SCORE DWORD 0
@@ -75,6 +83,8 @@ str_arrows BYTE "ARROWS: move", 0
 str_space BYTE "SPACE: attack", 0
 str_p BYTE "P: pause", 0
 
+;; Music
+CrystalCaveMusic BYTE "CrystalCave.wav", 0
 
 ;; Strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
@@ -1032,6 +1042,21 @@ GameInit PROC
         inc TreasuresSpawned
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Initialize music note powerup
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov ebx, OFFSET musicTile
+
+        push ebx
+        INVOKE GenerateEnemy, ebx, level
+        pop ebx
+
+        mov (SPRITE PTR [ebx]).bitmap, OFFSET MUSIC
+
+        ;; Set as not occupied
+        INVOKE LevelInfoClearBit, (SPRITE PTR [ebx]).posX, (SPRITE PTR [ebx]).posY, level, 1
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1100,6 +1125,39 @@ GamePlay PROC
         INVOKE ClearEntireScreen
         INVOKE RenderLevel, level
 
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Render treasures and music tile
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+        xor ecx, ecx
+        mov ebx, OFFSET treasures
+    
+    GamePlay_render_treasures:
+
+        ;; Only render active treasures
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_render_treasure
+
+        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+
+    GamePlay_no_render_treasure:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF treasures
+
+        jl GamePlay_render_treasures
+
+        ;; Done rendering treasures.
+    
+        ;; Only render music tile if active
+        cmp musicTile.active, 1
+        jne GamePlay_no_render_music
+
+        INVOKE RenderSpriteOnLevel, musicTile, level
+
+    GamePlay_no_render_music:
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1139,34 +1197,9 @@ GamePlay PROC
 
         jl GamePlay_render_enemies
 
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render treasures
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
-        xor ecx, ecx
-        mov ebx, OFFSET treasures
-    
-    GamePlay_render_treasures:
-
-        ;; Only render active treasures
-        cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_no_render_treasure
-
-        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
-
-    GamePlay_no_render_treasure:
-
-        add ecx, TYPE SPRITE
-        cmp ecx, SIZEOF treasures
-
-        jl GamePlay_render_treasures
-
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render other sprites (player, attack)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
-        INVOKE RenderSpriteOnLevel, player, level
 
         ;; Only render attack if active
         cmp currAttack.active, 1
@@ -1175,6 +1208,9 @@ GamePlay PROC
         INVOKE RenderSpriteOnLevel, currAttack, level
 
     GamePlay_no_render_attack:
+
+        ;; Render player always
+        INVOKE RenderSpriteOnLevel, player, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Move player -- arrow key controls
@@ -1325,6 +1361,16 @@ GamePlay PROC
         ;; Activate attack sprite
         mov currAttack.active, 1
 
+        ;; Decrement score to discourage spamming attacks -- but don't let
+        ;; it go negative
+        dec SCORE
+        cmp SCORE, 0
+        jg GamePlay_score_not_negative
+
+        mov SCORE, 0
+
+    GamePlay_score_not_negative:
+
         ;; Set attack position to current player
         mov eax, player.posX
         mov currAttack.posX, eax
@@ -1383,7 +1429,6 @@ GamePlay PROC
 
         ;; Deactivate attack, since it is on a wall, and decrease score
         mov currAttack.active, 0
-        dec SCORE
         jmp GamePlay_no_attack_collision_check
 
     GamePlay_attack_not_hit_wall:
@@ -1419,8 +1464,8 @@ GamePlay PROC
         mov (SPRITE PTR [ebx + ecx]).active, 0
         INVOKE LevelInfoClearBit, (SPRITE PTR [ebx + ecx]).posX, (SPRITE PTR [ebx + ecx]).posY, level, 1
 
-        ;; Increment score by 10 points
-        add SCORE, 10
+        ;; Give player 15 points for killing enemy
+        add SCORE, 15
 
         ;; And on death, maybe drop a treasure
         push ebx
@@ -1517,8 +1562,35 @@ GamePlay PROC
 
         jl GamePlay_check_treasures_loop
 
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Update sprites
+    ;; Collision detection (player and music tile)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        mov ebx, OFFSET musicTile
+
+        ;; Only check if music tile is active
+        cmp (SPRITE PTR [ebx]).active, 1
+        jne GamePlay_music_check_done
+
+        ;; Check if positions are equal
+        mov eax, (SPRITE PTR [ebx]).posX
+        cmp player.posX, eax
+        jne GamePlay_music_check_done
+
+        mov eax, (SPRITE PTR [ebx]).posY
+        cmp player.posY, eax
+        jne GamePlay_music_check_done
+
+        ;; If here, player is on a music tile!
+        ;; Deactivate it and start playing music
+        mov (SPRITE PTR [ebx]).active, 0
+        INVOKE PlaySound, offset CrystalCaveMusic, 0, SND_FILENAME OR SND_ASYNC
+
+    GamePlay_music_check_done:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Update attack
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Update currAttack position, if active
@@ -1533,7 +1605,6 @@ GamePlay PROC
         add currAttack.posY, eax
 
     GamePlay_attack_not_active:
-
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Display messages
