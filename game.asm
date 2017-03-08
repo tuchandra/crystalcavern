@@ -37,6 +37,7 @@ currAttack SPRITE< >
 
 level LEVEL< >
 
+;; Cooldowns
 PLAYER_COOLDOWN DWORD 1
 WANDERING_ENEMY_COOLDOWN DWORD 2
 TARGETED_ENEMY_COOLDOWN DWORD 3
@@ -526,7 +527,7 @@ RenderSprite ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-RenderSpriteOnLevel PROC USES ecx edx sprite:SPRITE, currLevel:LEVEL
+RenderSpriteOnLevel PROC USES ebx ecx edx sprite:SPRITE, currLevel:LEVEL
 
     ;; Sprite positions are in grid coordinates relative to level.
     ;; Subtract off level offset to convert to screen coordinates,
@@ -1008,12 +1009,6 @@ GamePlay PROC
         mov ebx, OFFSET enemies
     
     GamePlay_render_enemies:
-        ;; These push / pop statements stop the game from crashing
-        ;; For some reason the values don't get preserved when calling
-        ;; RenderSprite. But I have my USES statements right, so not
-        ;; sure what the bug is.
-        push ecx
-        push ebx
 
         ;; Only render active enemies
         cmp (SPRITE PTR [ebx + ecx]).active, 1
@@ -1022,9 +1017,6 @@ GamePlay PROC
         INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
 
     GamePlay_no_render_enemy:
-
-        pop ebx
-        pop ecx
 
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
@@ -1120,7 +1112,7 @@ GamePlay PROC
         mov eax, ebx
         add eax, ecx
         INVOKE SpriteDistance, eax, OFFSET player
-        cmp eax, 25
+        cmp eax, 10
         jg GamePlay_move_randomly
 
         ;; Decide direction to move from enemy to player
