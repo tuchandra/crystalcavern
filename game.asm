@@ -41,15 +41,15 @@ collected_treasures DWORD 12 DUP(OFFSET BOX0)
 
 level LEVEL< >
 
-;; Cooldowns
+;; Cooldowns and constants
 PLAYER_COOLDOWN DWORD 1
 WANDERING_ENEMY_COOLDOWN DWORD 2
 TARGETED_ENEMY_COOLDOWN DWORD 3
+TREASURE_DROP_CHANCE DWORD 2
 
 ;; Status
 GamePaused DWORD 0
 BoxesSpawned DWORD 0
-
 
 ;; Messages
 str_pause BYTE "GAME PAUSED", 0
@@ -93,10 +93,7 @@ outStr_first BYTE 256 DUP(0)
 fmtStr_second BYTE "second: %d", 0
 outStr_second BYTE 256 DUP(0)
 
-
-
 .CODE
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -959,60 +956,71 @@ GameInit PROC
         mov ebx, TYPE SPRITE
 
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX1
+        mov (SPRITE PTR [ecx]).ID, 1
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
 
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX2
+        mov (SPRITE PTR [ecx]).ID, 2
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX3
+        mov (SPRITE PTR [ecx]).ID, 3
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX4
+        mov (SPRITE PTR [ecx]).ID, 4
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX5
+        mov (SPRITE PTR [ecx]).ID, 5
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX6
+        mov (SPRITE PTR [ecx]).ID, 6
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX7
+        mov (SPRITE PTR [ecx]).ID, 7
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX8
+        mov (SPRITE PTR [ecx]).ID, 8
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX9
+        mov (SPRITE PTR [ecx]).ID, 9
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX10
+        mov (SPRITE PTR [ecx]).ID, 10
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX11
+        mov (SPRITE PTR [ecx]).ID, 11
         mov (SPRITE PTR [ecx]).active, 0
         add ecx, ebx
         
         mov (SPRITE PTR [ecx]).bitmap, OFFSET BOX12
+        mov (SPRITE PTR [ecx]).ID, 12
         mov (SPRITE PTR [ecx]).active, 0
 
         ;; Initialize the first treasure to have a fixed position
-        ;; near the player.
+        ;; near the player. We are allowed to walk on treasures.
         mov ecx, OFFSET treasures
         mov (SPRITE PTR [ecx]).posX, 10 ;12
         mov (SPRITE PTR [ecx]).posY, 17
 
         mov (SPRITE PTR [ecx]).active, 1
-        INVOKE LevelInfoSetBit, (SPRITE PTR [ecx]).posX, (SPRITE PTR [ecx]).posY, level, 1
 
         inc BoxesSpawned       
 
@@ -1338,7 +1346,7 @@ GamePlay PROC
     GamePlay_not_attack:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Collision detection
+    ;; Collision detection (attack and enemies)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Check if attack active; if not don't do collision detection
@@ -1389,7 +1397,7 @@ GamePlay PROC
         ;; On enemy death, maybe drop a treasure
         push ebx
         push ecx
-        INVOKE nrandom, 2
+        INVOKE nrandom, TREASURE_DROP_CHANCE
         pop ecx
         pop ebx
 
@@ -1422,14 +1430,15 @@ GamePlay PROC
         INVOKE GenerateEnemy, eax, level
         pop eax
 
-        ;; Restore box sprite; set as active
+        ;; Restore box sprite; set as active; clear occupied bit, because
+        ;; we can walk on treasures.
         pop (SPRITE PTR [eax]).bitmap
         mov (SPRITE PTR [eax]).active, 1
+        INVOKE LevelInfoClearBit, (SPRITE PTR [eax]).posX, (SPRITE PTR [eax]).posY, level, 1
 
         inc BoxesSpawned
 
     GamePlay_enemy_not_dead:
-
 
     GamePlay_enemy_no_collision:
         add ecx, TYPE SPRITE
@@ -1437,8 +1446,48 @@ GamePlay PROC
 
         jl GamePlay_enemy_collision_loop
 
-
     GamePlay_no_attack_collision_check:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Collision detection (player and trasures)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ;; Check if player is standing on a treasure; if so, pick it up
+        xor ecx, ecx
+        mov ebx, OFFSET treasures
+
+    GamePlay_check_treasures_loop:
+        ;; Only check active treasures
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_treasure_check_done
+
+        ;; Check if player is standing on treasure
+        mov eax, (SPRITE PTR [ebx + ecx]).posX
+        cmp player.posX, eax
+        jne GamePlay_treasure_check_done
+
+        mov eax, (SPRITE PTR [ebx + ecx]).posY
+        cmp player.posY, eax
+        jne GamePlay_treasure_check_done
+
+        ;; If here, player is standing on active treasure.
+        ;; Deactivate it; add to collected treasures.
+        mov (SPRITE PTR [ebx + ecx]).active, 0
+
+        ;; Get treasure ID, then calculate index into collected_treasures
+        mov eax, (SPRITE PTR [ebx + ecx]).ID
+        dec eax
+        imul eax, 4
+
+        mov edx, (SPRITE PTR [ebx + ecx]).bitmap
+        mov [collected_treasures + eax], edx
+
+
+    GamePlay_treasure_check_done:
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF treasures
+
+        jl GamePlay_check_treasures_loop
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Update sprites
@@ -1524,10 +1573,6 @@ GamePlay PROC
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;INVOKE PrintTwoVals, enemies.posX, enemies.posY
-;        mov ecx, OFFSET treasures
-;        mov (SPRITE PTR [ecx]).posX, 7
-;        mov (SPRITE PTR [ecx]).posY, 8
-;        INVOKE RenderSpriteOnLevel, (SPRITE PTR [ecx]), level
 
 
 	ret

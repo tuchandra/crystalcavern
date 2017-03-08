@@ -121,6 +121,9 @@ _SPRITE STRUCT
 
     ;; health: DWORD, amount of health remaining
     health          DWORD   10
+
+    ;; ID: DWORD, for sprites that need an ID
+    ID              DWORD    0
     
     ;; (posX, posY): grid position coordinates
     ;;               stored relative to a current level
