@@ -39,6 +39,7 @@ includelib \masm32\lib\masm32.lib
 PLAYER_COOLDOWN DWORD 1
 WANDERING_ENEMY_COOLDOWN DWORD 3
 TARGETED_ENEMY_COOLDOWN DWORD 3
+ATK_COOLDOWN DWORD 10
 
 TREASURE_DROP_CHANCE DWORD 2
 
@@ -67,7 +68,7 @@ SCORE DWORD 0
 ;; Messages
 str_dungeon BYTE "Cave of the Moon", 0
 
-fmtStr_player_health BYTE "Player health: %d/10", 0
+fmtStr_player_health BYTE "Player health: %d/20", 0
 outStr_player_health BYTE 256 DUP(0)
 
 fmtStr_score BYTE "Score: %d", 0
@@ -581,6 +582,32 @@ RenderSpriteOnLevel ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render attack on screen, relative to a map
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+RenderAttackOnLevel PROC USES ebx ecx edx sprite:SPRITE, currLevel:LEVEL
+
+    ;; Sprite positions are in grid coordinates relative to level.
+    ;; Subtract off level offset to convert to screen coordinates,
+    ;; then convert to DWORD for rendering
+    mov eax, sprite.attack_posX
+    sub eax, currLevel.offsetX
+    INVOKE GridToDWORD, eax
+    mov ecx, eax
+
+    mov eax, sprite.attack_posY
+    sub eax, currLevel.offsetY
+    INVOKE GridToDWORD, eax
+    mov edx, eax
+
+    invoke BasicBlit, sprite.attack_bitmap, ecx, edx
+
+    ret
+RenderAttackOnLevel ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Generate random enemy at random valid position
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -643,6 +670,9 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
         mov (SPRITE PTR [ebx]).bitmap, OFFSET PKMN2_DOWN
         mov (SPRITE PTR [ebx]).direction, 1
 
+        mov (SPRITE PTR [ebx]).attack_active, 0
+        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTK1
+
         jmp GenerateEnemy_done
 
     GenerateEnemy_sprite_zero:
@@ -654,6 +684,10 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
 
         mov (SPRITE PTR [ebx]).bitmap, OFFSET PKMN1_DOWN
         mov (SPRITE PTR [ebx]).direction, 1
+
+        mov (SPRITE PTR [ebx]).attack_active, 0
+        mov (SPRITE PTR [ebx]).attack_bitmap, OFFSET ATTK1
+
 
 
     GenerateEnemy_done:
@@ -822,7 +856,11 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         mov eax, 0
         ret
 
+
     TryToMove_no_cooldown:
+
+        mov ebx, (SPRITE PTR [edi]).posX
+        mov ecx, (SPRITE PTR [edi]).posY
         ;; Actually try to move, now
 
         mov ebx, (SPRITE PTR [edi]).posX
@@ -915,6 +953,89 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
 
 TryToMove ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Have a sprite try to attack
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+TryToAttack PROC USES edi ebx sprite:PTR SPRITE
+
+        ;; Start a new attack; as long as the cooldown is zero,
+        ;; we can attack in the direction we're facing.
+
+        mov edi, sprite
+
+        cmp (SPRITE PTR [edi]).attack_cooldown, 0
+        je TryToAttack_no_cooldown
+
+        ;; If we're here, we're on cooldown; decrement it and give up
+        dec (SPRITE PTR [edi]).attack_cooldown
+        ret
+
+    TryToAttack_no_cooldown:
+
+        ;; Set attack position to sprite position
+        mov eax, (SPRITE PTR [edi]).posX
+        mov (SPRITE PTR [edi]).attack_posX, eax
+
+        mov ebx, (SPRITE PTR [edi]).posY
+        mov (SPRITE PTR [edi]).attack_posY, ebx
+
+        ;; Set attack active
+        mov (SPRITE PTR [edi]).attack_active, 1
+
+        ;; Initialize attack velocity
+        mov ebx, 1
+
+        ;; Set attack velocity in direction sprite is facing.
+        ;; Direction is 0 (up), 1 (down), 2 (left), 3 (right)
+        mov eax, (SPRITE PTR [edi]).direction
+
+        ;; Check if direction is up
+        cmp eax, 0
+        jne TryToAttack_not_up
+
+        neg ebx
+        mov (SPRITE PTR [edi]).attack_velX, 0
+        mov (SPRITE PTR [edi]).attack_velY, ebx
+
+    TryToAttack_not_up:
+        ;; Check if direction is down
+        cmp eax, 1
+        jne TryToAttack_not_down
+
+        mov (SPRITE PTR [edi]).attack_velX, 0
+        mov (SPRITE PTR [edi]).attack_velY, ebx
+
+    TryToAttack_not_down:
+        ;; Check if direction is left
+        cmp eax, 2
+        jne TryToAttack_not_left
+
+        neg ebx
+        mov (SPRITE PTR [edi]).attack_velX, ebx
+        mov (SPRITE PTR [edi]).attack_velY, 0
+
+    TryToAttack_not_left:
+        ;; Check if direction is right
+        cmp eax, 3
+        jne TryToAttack_done
+
+        mov (SPRITE PTR [edi]).attack_velX, ebx
+        mov (SPRITE PTR [edi]).attack_velY, 0
+
+    TryToAttack_done:
+        ;; Set cooldown
+        mov eax, ATK_COOLDOWN
+        mov (SPRITE PTR [edi]).attack_cooldown, eax
+
+        ret
+
+TryToAttack ENDP
+
+
 GameInit PROC
     ;; Locals for temporary storage
     LOCAL tempX:DWORD, tempY:DWORD
@@ -957,6 +1078,9 @@ GameInit PROC
         ;; Set sprite and direction
         mov player.bitmap, OFFSET PKMN3_RIGHT
         mov player.direction, 3
+
+        ;; Set health
+        mov player.health, 20
 
         ;; Set all sprites
         mov player.bitmap_up, OFFSET PKMN3_UP
@@ -1161,6 +1285,12 @@ GamePlay PROC
     GamePlay_no_render_music:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Render player always
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        INVOKE RenderSpriteOnLevel, player, level
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Render enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
@@ -1174,6 +1304,13 @@ GamePlay PROC
         jne GamePlay_enemy_not_active
 
         INVOKE RenderSpriteOnLevel, (SPRITE PTR [ebx + ecx]), level
+
+        ;; Since enemy is active, check if enemy's attack is active
+        cmp (SPRITE PTR [ebx + ecx]).attack_active, 1
+        jne GamePlay_done_rendering_enemy
+
+        INVOKE RenderAttackOnLevel, (SPRITE PTR [ebx + ecx]), level
+
         jmp GamePlay_done_rendering_enemy
 
     GamePlay_enemy_not_active:
@@ -1200,7 +1337,7 @@ GamePlay PROC
         jl GamePlay_render_enemies
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render other sprites (player, attack)
+    ;; Render player attack
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Only render attack if active
@@ -1210,9 +1347,6 @@ GamePlay PROC
         INVOKE RenderSpriteOnLevel, currAttack, level
 
     GamePlay_no_render_attack:
-
-        ;; Render player always
-        INVOKE RenderSpriteOnLevel, player, level
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Move player -- arrow key controls
@@ -1354,6 +1488,47 @@ GamePlay PROC
         jl GamePlay_move_enemies
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Enemies randomly attack
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GamePlay_enemy_attack:
+        ;; Only check active enemies
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_enemy_no_attack
+
+        ;; Determine if enemy will attack this frame
+        push ecx
+        push ebx
+        invoke nrandom, 2
+        pop ebx
+        pop ecx
+
+        cmp eax, 0
+        jne GamePlay_enemy_no_attack
+
+
+        ;; Check if adjacent to player
+        mov eax, ebx
+        add eax, ecx
+        INVOKE SpriteDistance, eax, OFFSET player
+        cmp eax, 1
+        jg GamePlay_enemy_no_attack
+
+        ;; Enemy is going to try to attack!
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToAttack, eax
+
+    GamePlay_enemy_no_attack:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+        jl GamePlay_enemy_attack
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Attack -- spacebar control
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         mov eax, KeyPress
@@ -1416,6 +1591,58 @@ GamePlay PROC
         mov currAttack.velY, 0
 
     GamePlay_not_attack:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Collision detection (enemy attacks and player)
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GamePlay_enemy_attack_loop:
+
+        ;; Check if enemy active; if not, don't do collision detection
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_enemy_attack_no_collision
+
+        ;; Check if enemy attack active; if not, don't do collision detection
+        cmp (SPRITE PTR [ebx + ecx]).attack_active, 1
+        jne GamePlay_enemy_attack_no_collision
+
+        ;; Check if attack hit a wall. If so, deactivate
+        INVOKE LevelInfoTestBit, (SPRITE PTR [ebx + ecx]).attack_posX, (SPRITE PTR [ebx + ecx]).attack_posY, level, 0
+        jnz GamePlay_enemy_attack_no_hit_wall
+
+        mov (SPRITE PTR [ebx + ecx]).attack_active, 0
+        jmp GamePlay_enemy_attack_no_collision
+
+        ;; Do collision detection
+        ;; We exist on a grid, so just check if the attack and player exist
+        ;; on the same square.
+
+    GamePlay_enemy_attack_no_hit_wall:
+
+        mov eax, player.posX
+        cmp (SPRITE PTR [ebx + ecx]).attack_posX, eax
+        jne GamePlay_enemy_attack_no_collision
+
+        mov eax, player.posY
+        cmp (SPRITE PTR [ebx + ecx]).attack_posY, eax
+        jne GamePlay_enemy_attack_no_collision
+
+        ;; If here, there was a collision
+        ;; Deactivate attack and have player take damage.
+        mov (SPRITE PTR [ebx + ecx]).attack_active, 0
+        dec player.health
+
+    GamePlay_enemy_attack_no_collision:
+
+        ;; Move on to next enemy
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF treasures
+
+        jl GamePlay_enemy_attack_loop
+
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection (attack and enemies)
@@ -1594,12 +1821,12 @@ GamePlay PROC
     GamePlay_music_check_done:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Update attack
+    ;; Update attacks
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         ;; Update currAttack position, if active
         cmp currAttack.active, 1
-        jne GamePlay_attack_not_active
+        jne GamePlay_curr_attack_not_active
 
         ;; Add velocity to position
         mov eax, currAttack.velX
@@ -1608,7 +1835,37 @@ GamePlay PROC
         mov eax, currAttack.velY
         add currAttack.posY, eax
 
-    GamePlay_attack_not_active:
+    GamePlay_curr_attack_not_active:
+
+        ;; Check enemy attacks
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+    GamePlay_update_enemy_attacks:
+
+        ;; Only update attacks for active enemies
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_no_update_enemy_attack
+
+        ;; Only update active attacks
+        cmp (SPRITE PTR [ebx + ecx]).attack_active, 1
+        jne GamePlay_no_update_enemy_attack
+
+        ;; Add velocity to position
+        mov eax, (SPRITE PTR [ebx + ecx]).attack_velX
+        add (SPRITE PTR [ebx + ecx]).attack_posX, eax
+
+        mov eax, (SPRITE PTR [ebx + ecx]).attack_velY
+        add (SPRITE PTR [ebx + ecx]).attack_posY, eax
+
+    GamePlay_no_update_enemy_attack:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+
+        jl GamePlay_update_enemy_attacks
+
+
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Display messages
@@ -1689,6 +1946,17 @@ GamePlay PROC
         jne GamePlay_did_not_win
 
         INVOKE BasicBlit, OFFSET WIN, 216, 200
+
+    GamePlay_did_not_win:
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Check if player lost
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        cmp player.health, 0
+        jne GamePlay_did_not_lose
+
+        INVOKE BasicBlit, OFFSET LOSE, 216, 200
 
     GamePlay_did_not_win:
 

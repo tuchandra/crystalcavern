@@ -115,6 +115,19 @@ _SPRITE STRUCT
     bitmap_left     DWORD   ?
     bitmap_right    DWORD   ?
 
+    ;; attack_bitmap: DWORD pointer to bitmap for the attack this sprite can use
+    ;; attack_cooldown: DWORD, number of frames until sprite can attack again
+    ;; attack_active: DWORD, restricted to 0 (inactive) or 1 (active)
+    ;; (attack_posX, attack_posY): grid position vector
+    ;; (attack_velX, attack_velY): velocity vector
+    attack_bitmap   DWORD   ?
+    attack_cooldown DWORD   10
+    attack_active   DWORD   0
+    attack_posX     DWORD   ?
+    attack_posY     DWORD   ?
+    attack_velX     DWORD   ?
+    attack_velY     DWORD   ?
+
     ;; active: DWORD, but restricted to 0 (inactive) or 1 (active)
     ;;         controls whether or not sprite is handled in game logic
     ;; disappear: DWORD, number of frames until sprite disappears (-1 = never)
