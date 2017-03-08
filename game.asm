@@ -49,7 +49,8 @@ TREASURE_DROP_CHANCE DWORD 2
 
 ;; Status
 GamePaused DWORD 0
-BoxesSpawned DWORD 0
+TreasuresSpawned DWORD 0
+SCORE DWORD 0
 
 ;; Messages
 str_pause BYTE "GAME PAUSED", 0
@@ -58,7 +59,6 @@ str_dungeon BYTE "Cave of the Moon", 0
 fmtStr_player_health BYTE "Player health: %d/10", 0
 outStr_player_health BYTE 256 DUP(0)
 
-SCORE DWORD 0
 fmtStr_score BYTE "Score: %d", 0
 outStr_score BYTE 256 DUP(0)
 
@@ -1022,7 +1022,7 @@ GameInit PROC
 
         mov (SPRITE PTR [ecx]).active, 1
 
-        inc BoxesSpawned       
+        inc TreasuresSpawned
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Initialize enemies
@@ -1394,9 +1394,15 @@ GamePlay PROC
         mov (SPRITE PTR [ebx + ecx]).active, 0
         INVOKE LevelInfoClearBit, (SPRITE PTR [ebx + ecx]).posX, (SPRITE PTR [ebx + ecx]).posY, level, 1
 
-        ;; On enemy death, maybe drop a treasure
+        ;; Increment score by between 10 and 20 points
         push ebx
         push ecx
+        INVOKE nrandom, 10
+
+        add eax, 10
+        add SCORE, eax
+
+        ;; And on death, maybe drop a treasure
         INVOKE nrandom, TREASURE_DROP_CHANCE
         pop ecx
         pop ebx
@@ -1416,12 +1422,12 @@ GamePlay PROC
         ;; am sick of rewriting functions at this point.)
 
         ;; Max 12 boxes can be spawned
-        cmp BoxesSpawned, 12
+        cmp TreasuresSpawned, 12
         jnl GamePlay_enemy_not_dead
 
         ;; Address of next box
         mov eax, TYPE SPRITE
-        imul BoxesSpawned
+        imul TreasuresSpawned
         add eax, OFFSET treasures
 
         ;; Preserve sprite and address
@@ -1436,7 +1442,7 @@ GamePlay PROC
         mov (SPRITE PTR [eax]).active, 1
         INVOKE LevelInfoClearBit, (SPRITE PTR [eax]).posX, (SPRITE PTR [eax]).posY, level, 1
 
-        inc BoxesSpawned
+        inc TreasuresSpawned
 
     GamePlay_enemy_not_dead:
 
@@ -1471,8 +1477,9 @@ GamePlay PROC
         jne GamePlay_treasure_check_done
 
         ;; If here, player is standing on active treasure.
-        ;; Deactivate it; add to collected treasures.
+        ;; Deactivate it; add to collected treasures; give player 50 points.
         mov (SPRITE PTR [ebx + ecx]).active, 0
+        add SCORE, 50
 
         ;; Get treasure ID, then calculate index into collected_treasures
         mov eax, (SPRITE PTR [ebx + ecx]).ID
@@ -1481,7 +1488,6 @@ GamePlay PROC
 
         mov edx, (SPRITE PTR [ebx + ecx]).bitmap
         mov [collected_treasures + eax], edx
-
 
     GamePlay_treasure_check_done:
         add ecx, TYPE SPRITE
