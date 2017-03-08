@@ -36,6 +36,8 @@ currAttack SPRITE< >
 enemies SPRITE 5 DUP(<>)  ;15
 treasures SPRITE 12 DUP(<>)
 
+;; array of pointers to bitmaps
+collected_treasures DWORD 12 DUP(OFFSET BOX0)
 
 level LEVEL< >
 
@@ -63,6 +65,8 @@ outStr_score BYTE 256 DUP(0)
 EnemyHealth DWORD 10
 fmtStr_enemy_health BYTE "Enemy health: %d/10", 0
 outStr_enemy_health BYTE 256 DUP(0)
+
+str_treasures BYTE "Treasures Collected", 0
 
 str_arrows BYTE "ARROWS: move", 0
 str_space BYTE "SPACE: attack", 0
@@ -1491,6 +1495,22 @@ GamePlay PROC
         INVOKE DrawLine, 442, 140, 620, 140, 0ffh
 
         ;; Treasures collected
+        INVOKE DrawStr, OFFSET str_treasures, 454, 154, 0ffh
+
+        ;; Draw treasure sprites
+        INVOKE BasicBlit, [collected_treasures], 455, 180
+        INVOKE BasicBlit, [collected_treasures + 4], 485, 180
+        INVOKE BasicBlit, [collected_treasures + 8], 515, 180
+        INVOKE BasicBlit, [collected_treasures + 12], 545, 180
+        INVOKE BasicBlit, [collected_treasures + 16], 575, 180
+        INVOKE BasicBlit, [collected_treasures + 20], 605, 180
+
+        INVOKE BasicBlit, [collected_treasures + 24], 455, 210
+        INVOKE BasicBlit, [collected_treasures + 28], 485, 210
+        INVOKE BasicBlit, [collected_treasures + 32], 515, 210
+        INVOKE BasicBlit, [collected_treasures + 36], 545, 210
+        INVOKE BasicBlit, [collected_treasures + 40], 575, 210
+        INVOKE BasicBlit, [collected_treasures + 44], 605, 210
 
         ;; Controls
         INVOKE DrawLine, 442, 350, 620, 350, 0ffh
