@@ -1109,10 +1109,6 @@ GamePlay PROC
         pop ebx
         pop ecx
 
-        ;; Check if we want to enemy move at all (50% of time when they see us)
-        ;cmp eax, 30
-        ;jnl GamePlay_move_done
-
         push eax  ; store result of nrandom
 
         ;; If close enough to player, move towards it
