@@ -47,13 +47,24 @@ GamePaused DWORD 0
 
 
 ;; Messages
-EnemyHealth DWORD 10
+str_pause BYTE "GAME PAUSED", 0
+str_dungeon BYTE "Cave of the Moon", 0
 
+fmtStr_player_health BYTE "Player health: %d/10", 0
+outStr_player_health BYTE 256 DUP(0)
+
+SCORE DWORD 0
+fmtStr_score BYTE "Score: %d", 0
+outStr_score BYTE 256 DUP(0)
+
+EnemyHealth DWORD 10
 fmtStr_enemy_health BYTE "Enemy health: %d/10", 0
 outStr_enemy_health BYTE 256 DUP(0)
 
-fmtStr_pause BYTE "GAME PAUSED", 0
-outStr_pause BYTE 256 DUP(0)
+str_arrows BYTE "ARROWS: move", 0
+str_space BYTE "SPACE: attack", 0
+str_p BYTE "P: pause", 0
+
 
 ;; Strings for PrintRegs
 fmtStr_eax BYTE "eax: %d", 0
@@ -983,11 +994,7 @@ GamePlay PROC
 
     GamePlay_paused:
         ;; Render paused message
-        push OFFSET fmtStr_pause
-        push OFFSET outStr_pause
-        call wsprintf
-        add esp, 8
-        INVOKE DrawStr, OFFSET outStr_pause, 450, 300, 0ffh
+        INVOKE DrawStr, OFFSET str_pause, 450, 300, 0ffh
 
         ;; And don't do anything else (update game objects, etc.)
         jmp GamePlay_end
@@ -1321,12 +1328,41 @@ GamePlay PROC
         INVOKE ClearRightScreen
         INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
+        ;; Game name
+        INVOKE DrawStr, OFFSET str_dungeon, 470, 26, 0ffh
+        INVOKE DrawLine, 442, 60, 620, 60, 0ffh
+
+        ;; Player health, score, enemy health
+        push player.health
+        push OFFSET fmtStr_player_health
+        push OFFSET outStr_player_health
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, OFFSET outStr_player_health, 450, 80, 0ffh
+
+        push SCORE
+        push OFFSET fmtStr_score
+        push OFFSET outStr_score
+        call wsprintf
+        add esp, 12
+        INVOKE DrawStr, OFFSET outStr_score, 514, 95, 0ffh
+
         push EnemyHealth
         push OFFSET fmtStr_enemy_health
         push OFFSET outStr_enemy_health
         call wsprintf
         add esp, 12
-        INVOKE DrawStr, OFFSET outStr_enemy_health, 450, 200, 0ffh
+        INVOKE DrawStr, OFFSET outStr_enemy_health, 458, 110, 0ffh
+
+        INVOKE DrawLine, 442, 140, 620, 140, 0ffh
+
+        ;; Treasures collected
+
+        ;; Controls
+        INVOKE DrawLine, 442, 350, 620, 350, 0ffh
+        INVOKE DrawStr, OFFSET str_arrows, 472, 380, 0ffh
+        INVOKE DrawStr, OFFSET str_space, 480, 395, 0ffh
+        INVOKE DrawStr, OFFSET str_p, 512, 410, 0ffh
         
 
     GamePlay_end:
