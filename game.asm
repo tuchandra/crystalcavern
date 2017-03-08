@@ -622,6 +622,139 @@ GenerateEnemy PROC USES ebx ecx sprite:PTR SPRITE, currLevel:LEVEL
 
 GenerateEnemy ENDP
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Absolute value
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+AbsVal PROC x:DWORD
+        ;; Compute absolute value of x
+        mov eax, x
+        cmp eax, 0
+        jg AbsVal_done
+    
+        ;; If here, eax < 0
+        neg eax
+
+    AbsVal_done:
+        ret
+
+AbsVal ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Sprite distance
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SpriteDistance PROC USES edi esi ebx sprite1:PTR SPRITE, sprite2:PTR SPRITE
+
+    ;; Compute squared distance between two sprites
+    ;; (sprite2.posX - sprite1.posX)^2 + (sprite2.posY - sprite1.posY)^2
+
+    mov esi, sprite2
+    mov edi, sprite1
+
+    ;; eax = sprite2.posX - sprite1.posX
+    mov eax, (SPRITE PTR [esi]).posX
+    sub eax, (SPRITE PTR [edi]).posX
+    imul eax  ; square it
+    mov ebx, eax  ; ebx = deltaX^2
+
+    ;; eax = sprite2.posY - sprite1.posY    
+    mov eax, (SPRITE PTR [esi]).posY
+    sub eax, (SPRITE PTR [edi]).posY
+    imul eax  ; square it
+
+    add eax, ebx  ; eax = deltaY^2 + deltaX^2
+
+    ret
+
+SpriteDistance ENDP
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get bearing (direction to move) from sprite1 -> sprite2
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+GetBearing PROC USES edi esi ebx ecx edx sprite1:PTR SPRITE, sprite2:PTR SPRITE
+        
+        ;; Figure out the direction that sprite1 needs to move
+        ;; to get to sprite2. Return number, according to the
+        ;; same directions convention we've been using.
+        ;; 
+        ;; Directions: 0 (up), 1 (down), 2 (left), 3 (right)
+
+        mov esi, sprite2
+        mov edi, sprite1
+
+        ;; compute differences in positions
+        ;; ebx = sprite2.posX - sprite1.posX
+        mov ebx, (SPRITE PTR [esi]).posX
+        sub ebx, (SPRITE PTR [edi]).posX
+
+        ;; ecx = sprite2.posY - sprite1.posY
+        mov ecx, (SPRITE PTR [esi]).posY
+        sub ecx, (SPRITE PTR [edi]).posY
+
+        ;; Figure out if primary motion is left/right or up/down
+        INVOKE AbsVal, ebx
+        mov edx, eax
+
+        INVOKE AbsVal, ecx
+
+        ;; edx = abs(sprite2.posX - sprite1.posX)
+        ;; eax = abs(sprite2.posY - sprite1.posY)
+
+        cmp edx, eax
+        jg GetBearing_x_larger
+
+        ;; If here, primary motion is in up/down direction
+        ;; Figure out up or down by checking sign of deltaY (ecx)
+        cmp ecx, 0
+        jl GetBearing_move_up
+
+        ;; If here, ecx > 0, so sprite2.posY > sprite1.posY,
+        ;; so sprite2 is below sprite1, so move down.
+        mov eax, 1
+        ret
+
+    GetBearing_move_up:
+        ;; If here, ecx < 0, so sprite2.posY < sprite1.posY,
+        ;; so sprite2 is above sprite1, so move up
+        mov eax, 0
+        ret
+
+    GetBearing_x_larger:
+        ;; If here, primary motion is in left/right direction
+        ;; Figure out left or right by checking sign of deltaX (ebx)
+
+        cmp ebx, 0
+        jl GetBearing_move_left
+
+        ;; If here, ebx > 0, so sprite2.posX > sprite1.posX,
+        ;; so sprite2 is right of sprite1, so move right.
+        mov eax, 3
+        ret
+
+    GetBearing_move_left:
+        ;; If here, ebx < 0, so sprite2.posX < sprite1.posX,
+        ;; so sprite2 is left of sprite1, so move left.
+        mov eax, 2
+        ret
+
+    ;; You should never reach this point, but just in case, return 0
+    mov eax, 0
+    ret
+
+GetBearing ENDP
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Try to move a sprite in given direction
@@ -955,6 +1088,34 @@ GamePlay PROC
 
         pop ebx
         pop ecx
+
+        ;; Check if we want to enemy move at all (50% of time when they see us)
+        cmp eax, 30
+        jnl GamePlay_move_done
+
+        push eax  ; store result of nrandom
+
+        ;; If close enough to player, move towards it
+        mov eax, ebx
+        add eax, ecx
+        INVOKE SpriteDistance, eax, OFFSET player
+        cmp eax, 25
+        jg GamePlay_move_randomly
+
+        ;; Decide direction to move from enemy to player
+        mov edx, ebx
+        add edx, ecx
+        INVOKE GetBearing, edx, OFFSET player
+        INVOKE TryToMove, edx, level, eax
+
+        pop eax  ; need to undo the push eax, even though we don't need this
+
+        jmp GamePlay_move_done
+    
+    GamePlay_move_randomly:
+
+        ;; restore result of nrandom
+        pop eax
 
         cmp eax, 0  ; up
         jne GamePlay_no_enemy_move_up
