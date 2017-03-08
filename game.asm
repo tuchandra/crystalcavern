@@ -37,6 +37,10 @@ currAttack SPRITE< >
 
 level LEVEL< >
 
+PLAYER_COOLDOWN DWORD 1
+WANDERING_ENEMY_COOLDOWN DWORD 2
+TARGETED_ENEMY_COOLDOWN DWORD 3
+
 ;; Status
 GamePaused DWORD 0
 
@@ -761,17 +765,30 @@ GetBearing ENDP
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DWORD
+TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DWORD, cooldown:DWORD
 
         ;; Try to move the sprite one square in the particular direction.
         ;; Check the destination to be walkable and empty, and move there
-        ;; if possible.
+        ;; if possible. If move successful, reset cooldown to provided val
         ;; 
         ;; Directions: 0 (up), 1 (down), 2 (left), 3 (right)
         ;;
         ;; Return: 1 if successful, 0 otherwise
 
         mov edi, sprite
+
+        ;; First, check if we're able to walk
+        cmp (SPRITE PTR [edi]).move_cooldown, 0
+        je TryToMove_no_cooldown
+
+        ;; If here, we're on cooldown -- decrement cooldown and give up
+        dec (SPRITE PTR [edi]).move_cooldown
+        mov eax, 0
+        ret
+
+    TryToMove_no_cooldown:
+        ;; Actually try to move, now
+
         mov ebx, (SPRITE PTR [edi]).posX
         mov ecx, (SPRITE PTR [edi]).posY
 
@@ -836,6 +853,10 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         jnz TryToMove_done  ; if 1, occupied and can't move
 
         ;; Now, we know we can move.
+
+        ;; Reset movement cooldown
+        mov eax, cooldown
+        mov (SPRITE PTR [edi]).move_cooldown, eax
 
         ;; Clear the old location
         INVOKE LevelInfoClearBit, (SPRITE PTR [edi]).posX, (SPRITE PTR [edi]).posY, level, 1
@@ -1034,7 +1055,7 @@ GamePlay PROC
         cmp eax, VK_UP
         jne GamePlay_not_up
 
-        INVOKE TryToMove, OFFSET player, level, 0
+        INVOKE TryToMove, OFFSET player, level, 0, PLAYER_COOLDOWN
 
         ;; This is bad, but TryToMove returns 1 if we moved, 0 otherwise
         ;; so we can just add the result to offsetY, since we only want
@@ -1046,7 +1067,7 @@ GamePlay PROC
         cmp eax, VK_DOWN
         jne GamePlay_not_down
 
-        INVOKE TryToMove, OFFSET player, level, 1
+        INVOKE TryToMove, OFFSET player, level, 1, PLAYER_COOLDOWN
         add level.offsetY, eax
 
     GamePlay_not_down:
@@ -1054,7 +1075,7 @@ GamePlay PROC
         cmp eax, VK_LEFT
         jne GamePlay_not_left
 
-        INVOKE TryToMove, OFFSET player, level, 2
+        INVOKE TryToMove, OFFSET player, level, 2, PLAYER_COOLDOWN
         sub level.offsetX, eax
 
     GamePlay_not_left:
@@ -1062,7 +1083,7 @@ GamePlay PROC
         cmp eax, VK_RIGHT
         jne GamePlay_not_right
 
-        INVOKE TryToMove, OFFSET player, level, 3
+        INVOKE TryToMove, OFFSET player, level, 3, PLAYER_COOLDOWN
         add level.offsetX, eax
 
     GamePlay_not_right:
@@ -1090,8 +1111,8 @@ GamePlay PROC
         pop ecx
 
         ;; Check if we want to enemy move at all (50% of time when they see us)
-        cmp eax, 30
-        jnl GamePlay_move_done
+        ;cmp eax, 30
+        ;jnl GamePlay_move_done
 
         push eax  ; store result of nrandom
 
@@ -1106,7 +1127,7 @@ GamePlay PROC
         mov edx, ebx
         add edx, ecx
         INVOKE GetBearing, edx, OFFSET player
-        INVOKE TryToMove, edx, level, eax
+        INVOKE TryToMove, edx, level, eax, TARGETED_ENEMY_COOLDOWN
 
         pop eax  ; need to undo the push eax, even though we don't need this
 
@@ -1123,7 +1144,7 @@ GamePlay PROC
         ;; Try moving up
         mov eax, ebx
         add eax, ecx
-        INVOKE TryToMove, eax, level, 0
+        INVOKE TryToMove, eax, level, 0, WANDERING_ENEMY_COOLDOWN
 
         jmp GamePlay_move_done
 
@@ -1134,7 +1155,7 @@ GamePlay PROC
         ;; Try moving down
         mov eax, ebx
         add eax, ecx
-        INVOKE TryToMove, eax, level, 1
+        INVOKE TryToMove, eax, level, 1, WANDERING_ENEMY_COOLDOWN
 
         jmp GamePlay_move_done
 
@@ -1145,7 +1166,7 @@ GamePlay PROC
         ;; Try moving left
         mov eax, ebx
         add eax, ecx
-        INVOKE TryToMove, eax, level, 2
+        INVOKE TryToMove, eax, level, 2, WANDERING_ENEMY_COOLDOWN
 
         jmp GamePlay_move_done
 
@@ -1157,7 +1178,7 @@ GamePlay PROC
         ;; Try moving right
         mov eax, ebx
         add eax, ecx
-        INVOKE TryToMove, eax, level, 3
+        INVOKE TryToMove, eax, level, 3, WANDERING_ENEMY_COOLDOWN
 
 
     GamePlay_move_done:

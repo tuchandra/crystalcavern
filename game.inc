@@ -105,6 +105,9 @@ _SPRITE STRUCT
     active          DWORD    1
     disappear       DWORD   -1
 
+    ;; move_cooldown: DWORD, number of frames until sprite can move again
+    move_cooldown   DWORD    0
+
     ;; health: DWORD, amount of health remaining
     health          DWORD   10
     
