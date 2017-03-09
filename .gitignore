@@ -2,9 +2,9 @@
 *.obj
 !libgame.obj
 
-# Built game, assignment file
-*.exe
+# Assignment file, design doc
 *.pdf
+*.txt
 
 # Sprites
 sprites/
