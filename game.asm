@@ -71,7 +71,7 @@ TreasuresCollected DWORD 0
 SCORE DWORD 0
 
 ;; Messages
-str_dungeon BYTE "Cave of the Moon", 0
+str_dungeon BYTE "Crystal Cavern", 0
 
 fmtStr_player_health BYTE "Player health: %d/%d", 0
 outStr_player_health BYTE 256 DUP(0)
@@ -2026,7 +2026,7 @@ GamePlay PROC
         INVOKE DrawLine, 432, 0, 432, 480, 0ffh
 
         ;; Game name
-        INVOKE DrawStr, OFFSET str_dungeon, 470, 26, 0ffh
+        INVOKE DrawStr, OFFSET str_dungeon, 478, 26, 0ffh
         INVOKE DrawLine, 442, 60, 620, 60, 0ffh
 
         ;; Player health, score, enemy health
