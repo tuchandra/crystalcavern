@@ -1320,13 +1320,13 @@ GameInit PROC
     ;; Initialize enemies
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ;; Generate and set positions
+        ;; Generate and set positions for all enemies
         
         xor ecx, ecx
         mov ebx, OFFSET enemies
 
     GameInit_enemy_position:
-        ;; push these so they don't get overwritten by 
+        ;; push these so they don't get overwritten by GenerateEnemy
         push ebx
         push ecx
 
@@ -1336,12 +1336,9 @@ GameInit PROC
         pop ecx
         pop ebx
 
-        ;; Move to next enemy if we're not done
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
-
         jl GameInit_enemy_position
-
 
         ret
 GameInit ENDP
