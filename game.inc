@@ -137,6 +137,7 @@ _SPRITE STRUCT
     ;; attack_active: DWORD, restricted to 0 (inactive) or 1 (active)
     ;; (attack_posX, attack_posY): grid position vector
     ;; (attack_velX, attack_velY): velocity vector
+    ;; attack_dir: DWORD, like direction, for the attack direction of motion
     attack_bitmap   DWORD   ?
     attack_cooldown DWORD   0
     attack_active   DWORD   0
@@ -144,6 +145,7 @@ _SPRITE STRUCT
     attack_posY     DWORD   ?
     attack_velX     DWORD   ?
     attack_velY     DWORD   ?
+    attack_dir      DWORD   ?
 
     ;; active: DWORD, but restricted to 0 (inactive) or 1 (active)
     ;;         controls whether or not sprite is handled in game logic

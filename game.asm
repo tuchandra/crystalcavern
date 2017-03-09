@@ -44,9 +44,10 @@ ATK_COOLDOWN DWORD 10
 TREASURE_DROP_CHANCE DWORD 5
 
 ENEMY_SPAWN_RATE DWORD 100
-BERRY_SPAWN_RATE DWORD 1000
+BERRY_SPAWN_RATE DWORD 500
 
-PLAYER_MAX_HEALTH DWORD 100
+BERRY_HEALTH DWORD 10
+PLAYER_MAX_HEALTH DWORD 30
 
 ;; Sprites
 player SPRITE< >
@@ -89,6 +90,7 @@ outStr_treasures_left BYTE 256 DUP(0)
 
 str_player BYTE ": player", 0
 str_enemies BYTE ": enemies", 0
+str_berries BYTE ": recover health", 0
 
 str_arrows BYTE "ARROWS: move", 0
 str_space BYTE "SPACE: attack", 0
@@ -1019,94 +1021,132 @@ TryToMove ENDP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Have a sprite try to attack
+;; Update enemy attacks, either by moving, destroying, or
+;; creating a new one
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-TryToAttack PROC USES edi ebx sprite:PTR SPRITE
-
-        ;; Start a new attack; as long as the cooldown is zero,
-        ;; we can attack in the direction we're facing.
-
+UpdateEnemyAttack PROC USES eax ebx ecx edx edi sprite:PTR SPRITE, currLevel:LEVEL
+    
         mov edi, sprite
 
-        cmp (SPRITE PTR [edi]).attack_cooldown, 0
-        je TryToAttack_no_cooldown
+        ;; If an attack exists and is active, update it
+        ;; based on its velocity.
 
-        ;; If we're here, we're on cooldown; decrement it and give up
+        cmp (SPRITE PTR [edi]).attack_active, 1
+        jne UpdateEnemyAttack_not_active
+
+        ;; Update posX and posY
+        cmp (SPRITE PTR [edi]).attack_dir, 0
+        jne UpdateEnemyAttack_attack_dir_not_0
+
+        ;; dir 0 is up
+        dec (SPRITE PTR [edi]).attack_posY
+        jmp UpdateEnemyAttack_done_moving
+
+    UpdateEnemyAttack_attack_dir_not_0:
+        cmp (SPRITE PTR [edi]).attack_dir, 1
+        jne UpdateEnemyAttack_attack_dir_not_1
+
+        ;; dir 1 is down
+        inc (SPRITE PTR [edi]).attack_posY
+        jmp UpdateEnemyAttack_done_moving
+
+    UpdateEnemyAttack_attack_dir_not_1:
+        cmp (SPRITE PTR [edi]).attack_dir, 2
+        jne UpdateEnemyAttack_attack_dir_not_2
+
+        ;; dir 2 is left
+        dec (SPRITE PTR [edi]).attack_posX
+        jmp UpdateEnemyAttack_done_moving
+
+    UpdateEnemyAttack_attack_dir_not_2:
+        cmp (SPRITE PTR [edi]).attack_dir, 3
+        jne UpdateEnemyAttack_done_moving
+
+        ;; dir 3 is right
+        inc (SPRITE PTR [edi]).attack_posX
+
+    UpdateEnemyAttack_done_moving:
+
+        ;; Check if we need to deactivate the attack, that is, if the attack
+        ;; hit a wall.
+        INVOKE LevelInfoTestBit, (SPRITE PTR [edi]).attack_posX, (SPRITE PTR [edi]).attack_posY, currLevel, 0
+        jnz UpdateEnemyAttack_did_not_hit_wall
+
+        ;; If here, we hit a wall; deactivate it.
+        mov (SPRITE PTR [edi]).attack_active, 0
+    
+    UpdateEnemyAttack_did_not_hit_wall:
+        ;; We didn't hit a wall, but did we hit the player? Check, and
+        ;; deactivate if we did
+
+        mov eax, player.posX
+        cmp (SPRITE PTR [edi]).attack_posX, eax
+        jne UpdateEnemyAttack_no_collision
+
+        mov eax, player.posY
+        cmp (SPRITE PTR [edi]).attack_posY, eax
+        jne UpdateEnemyAttack_no_collision
+
+        ;; If here, the attack overlaps with player -- deactivate attack
+        ;; and decrement player health
+
+        mov (SPRITE PTR [edi]).attack_active, 0
+        dec player.health
+
+    UpdateEnemyAttack_no_collision:
+
+        ret
+
+    UpdateEnemyAttack_not_active:
+        ;; Reach here if attack was not active. Make a new attack, maybe
+
+        ;; Check if on cooldown; if so, decrement and give up
+        cmp (SPRITE PTR [edi]).attack_cooldown, 0
+        je UpdateEnemyAttack_no_cooldown
+
         dec (SPRITE PTR [edi]).attack_cooldown
         ret
 
-        cmp (SPRITE PTR [edi]).attack_active, 1
-        jne TryToAttack_no_cooldown
-        ret
+    UpdateEnemyAttack_no_cooldown:
+        ;; Make a new attack.
 
-    TryToAttack_no_cooldown:
+        ;; Only attack occasionally
+        push edi
+        INVOKE nrandom, 10
+        pop edi
+        cmp eax, 0
+        jne UpdateEnemyAttack_do_not_attack
 
-        ;; Set attack position to sprite position
+        ;; Condition on being next to player
+        INVOKE SpriteDistance, edi, OFFSET player
+        cmp eax, 1
+        jg UpdateEnemyAttack_do_not_attack
+        
+        ;; Set attack position to current sprite's position
         mov eax, (SPRITE PTR [edi]).posX
         mov (SPRITE PTR [edi]).attack_posX, eax
 
-        mov ebx, (SPRITE PTR [edi]).posY
-        mov (SPRITE PTR [edi]).attack_posY, ebx
+        mov eax, (SPRITE PTR [edi]).posY
+        mov (SPRITE PTR [edi]).attack_posY, eax
 
-        ;; Set attack active
+        ;; Set attack direction
+        mov eax, (SPRITE PTR [edi]).direction
+        mov (SPRITE PTR [edi]).attack_dir, eax
+
+        ;; Set as active
         mov (SPRITE PTR [edi]).attack_active, 1
 
-        ;; Initialize attack velocity
-        mov ebx, 1
-
-        ;; Set attack velocity in direction sprite is facing.
-        ;; Direction is 0 (up), 1 (down), 2 (left), 3 (right)
-        mov eax, (SPRITE PTR [edi]).direction
-
-        ;; Check if direction is up
-        cmp eax, 0
-        jne TryToAttack_not_up
-
-        neg ebx
-        mov (SPRITE PTR [edi]).attack_velX, 0
-        mov (SPRITE PTR [edi]).attack_velY, ebx
-
-        jmp TryToAttack_done
-
-    TryToAttack_not_up:
-        ;; Check if direction is down
-        cmp eax, 1
-        jne TryToAttack_not_down
-
-        mov (SPRITE PTR [edi]).attack_velX, 0
-        mov (SPRITE PTR [edi]).attack_velY, ebx
-
-        jmp TryToAttack_done
-
-    TryToAttack_not_down:
-        ;; Check if direction is left
-        cmp eax, 2
-        jne TryToAttack_not_left
-
-        neg ebx
-        mov (SPRITE PTR [edi]).attack_velX, ebx
-        mov (SPRITE PTR [edi]).attack_velY, 0
-
-        jmp TryToAttack_done
-
-    TryToAttack_not_left:
-        ;; Check if direction is right
-        cmp eax, 3
-        jne TryToAttack_done
-
-        mov (SPRITE PTR [edi]).attack_velX, ebx
-        mov (SPRITE PTR [edi]).attack_velY, 0
-
-    TryToAttack_done:
         ;; Set cooldown
         mov eax, ATK_COOLDOWN
         mov (SPRITE PTR [edi]).attack_cooldown, eax
 
+    UpdateEnemyAttack_do_not_attack:
+
         ret
 
-TryToAttack ENDP
+UpdateEnemyAttack ENDP
 
 
 GameInit PROC
@@ -1664,7 +1704,7 @@ GamePlay PROC
     GamePlay_not_attack:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Enemies randomly attack
+    ;; Update enemy attacks (existing and new ones)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         xor ecx, ecx
@@ -1677,85 +1717,16 @@ GamePlay PROC
         cmp (SPRITE PTR [ebx + ecx]).active, 1
         jne GamePlay_enemy_no_attack
 
-        ;; Determine if enemy will attack this frame
-        push ecx
-        push ebx
-        invoke nrandom, 2
-        pop ebx
-        pop ecx
-
-        cmp eax, 0
-        jne GamePlay_enemy_no_attack
-
-        ;; Check if adjacent to player
+        ;; Update the attack (propagate it, destroy it, create it)
         mov eax, ebx
         add eax, ecx
-        INVOKE SpriteDistance, eax, OFFSET player
-        cmp eax, 1
-        jg GamePlay_enemy_no_attack
-
-        ;; Enemy is going to try to attack!
-        mov eax, ebx
-        add eax, ecx
-        INVOKE TryToAttack, eax
+        INVOKE UpdateEnemyAttack, eax, level
 
     GamePlay_enemy_no_attack:
 
         add ecx, TYPE SPRITE
         cmp ecx, SIZEOF enemies
         jl GamePlay_enemy_attack
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Collision detection (enemy attacks and player)
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        xor ecx, ecx
-        mov ebx, OFFSET enemies
-
-    GamePlay_enemy_attack_loop:
-        ;; Check if enemy active; if not, don't do collision detection
-        cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_enemy_attack_no_collision
-
-
-        ;; Check if enemy attack active; if not, don't do collision detection
-        cmp (SPRITE PTR [ebx + ecx]).attack_active, 1
-        jne GamePlay_enemy_attack_no_collision
- 
-        ;; Check if attack hit a wall. If so, deactivate
-        INVOKE LevelInfoTestBit, (SPRITE PTR [ebx + ecx]).attack_posX, (SPRITE PTR [ebx + ecx]).attack_posY, level, 0
-        jnz GamePlay_enemy_attack_no_hit_wall
-
-        mov (SPRITE PTR [ebx + ecx]).attack_active, 0
-        jmp GamePlay_enemy_attack_no_collision
-
-        ;; Do collision detection
-        ;; We exist on a grid, so just check if the attack and player exist
-        ;; on the same square.
-
-    GamePlay_enemy_attack_no_hit_wall:
-
-        mov eax, player.posX
-        cmp (SPRITE PTR [ebx + ecx]).attack_posX, eax
-        jne GamePlay_enemy_attack_no_collision
-
-        mov eax, player.posY
-        cmp (SPRITE PTR [ebx + ecx]).attack_posY, eax
-        jne GamePlay_enemy_attack_no_collision
-
-        ;; If here, there was a collision
-        ;; Deactivate attack and have player take damage.
-        mov (SPRITE PTR [ebx + ecx]).attack_active, 0
-        dec player.health
-
-    GamePlay_enemy_attack_no_collision:
-
-        ;; Move on to next enemy
-        add ecx, TYPE SPRITE
-        cmp ecx, SIZEOF treasures
-
-        jl GamePlay_enemy_attack_loop
-
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection (player attack and enemies)
@@ -1835,20 +1806,11 @@ GamePlay PROC
         cmp eax, 0
         jne GamePlay_enemy_not_dead
 
-        ;; Spawn a treasure somewhere
-        ;; Get valid position -- very klugey way of doing this
-        ;; Basically, GenerateEnemy does what we want, except it assigns
-        ;; the sprite an enemy sprite. Let's store the sprite and replace
-        ;; it. 
-        ;; 
-        ;; (This is a sign I should have designed GenerateEnemy better,
-        ;; but hindsight is 20/20. Also, at the time, I didn't know how
-        ;; I was going to implement treasures / items, if at all. I also
-        ;; am sick of rewriting functions at this point.)
-
         ;; Max 12 boxes can be spawned
         cmp TreasuresSpawned, 12
         jnl GamePlay_enemy_not_dead
+
+        ;; If here, we want to spawn a treasure somewhere
 
         ;; Address of next box
         mov eax, TYPE SPRITE
@@ -1942,10 +1904,11 @@ GamePlay PROC
         jne GamePlay_berry_check_done
 
         ;; If here, player is standing on active berry
-        ;; Deactivate; restore 3 health to player; give player 20 points;
+        ;; Deactivate; restore some health to player; give player 20 points;
         ;; clear the item bit of level.info
         mov (SPRITE PTR [ebx + ecx]).active, 0
-        add player.health, 3
+        mov eax, BERRY_HEALTH
+        add player.health, eax
         add SCORE, 20
         INVOKE LevelInfoClearBit, player.posX, player.posY, level, 2
 
@@ -2125,16 +2088,19 @@ GamePlay PROC
         INVOKE DrawLine, 442, 260, 620, 260, 0ffh
 
         ;; Explanations of sprites
-        INVOKE BasicBlit, OFFSET PKMN3_DOWN, 500, 280
-        INVOKE DrawStr, OFFSET str_player, 520, 280, 0ffh
+        INVOKE BasicBlit, OFFSET PKMN3_DOWN, 470, 278
+        INVOKE DrawStr, OFFSET str_player, 490, 274, 0ffh
 
-        INVOKE BasicBlit, OFFSET PKMN1_DOWN, 470, 310
-        INVOKE BasicBlit, OFFSET PKMN2_DOWN, 500, 310
-        INVOKE DrawStr, OFFSET str_enemies, 520, 310, 0ffh
+        INVOKE BasicBlit, OFFSET PKMN1_DOWN, 455, 304
+        INVOKE BasicBlit, OFFSET PKMN2_DOWN, 470, 304
+        INVOKE DrawStr, OFFSET str_enemies, 490, 300, 0ffh
 
+        INVOKE BasicBlit, OFFSET BERRY1, 455, 334
+        INVOKE BasicBlit, OFFSET BERRY5, 470, 334
+        INVOKE DrawStr, OFFSET str_berries, 490, 330, 0ffh
 
         ;; Controls
-        INVOKE DrawLine, 442, 350, 620, 350, 0ffh
+        INVOKE DrawLine, 442, 360, 620, 360, 0ffh
         INVOKE DrawStr, OFFSET str_arrows, 472, 380, 0ffh
         INVOKE DrawStr, OFFSET str_space, 480, 395, 0ffh
         INVOKE DrawStr, OFFSET str_p, 512, 410, 0ffh
