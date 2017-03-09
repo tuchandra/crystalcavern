@@ -35,23 +35,23 @@ includelib \masm32\lib\masm32.lib
 
 .DATA
 
-;; Cooldowns and constants
+;; Parameters
 PLAYER_COOLDOWN DWORD 1
-WANDERING_ENEMY_COOLDOWN DWORD 3
-TARGETED_ENEMY_COOLDOWN DWORD 3
-ATK_COOLDOWN DWORD 20
+WANDERING_ENEMY_COOLDOWN DWORD 2
+TARGETED_ENEMY_COOLDOWN DWORD 4
+ATK_COOLDOWN DWORD 10
 
-TREASURE_DROP_CHANCE DWORD 2
+TREASURE_DROP_CHANCE DWORD 5
 
 ENEMY_SPAWN_RATE DWORD 100
-BERRY_SPAWN_RATE DWORD 300
+BERRY_SPAWN_RATE DWORD 1000
 
-PLAYER_MAX_HEALTH DWORD 20
+PLAYER_MAX_HEALTH DWORD 100
 
 ;; Sprites
 player SPRITE< >
 musicTile SPRITE< >
-enemies SPRITE 5 DUP(<>)  ;15
+enemies SPRITE 25 DUP(<>)
 berries SPRITE 6 DUP(<>)
 treasures SPRITE 12 DUP(<>)
 
@@ -86,6 +86,9 @@ str_treasures BYTE "Treasures Collected", 0
 
 fmtStr_treasures_left BYTE "Collect %d more to win!", 0
 outStr_treasures_left BYTE 256 DUP(0)
+
+str_player BYTE ": player", 0
+str_enemies BYTE ": enemies", 0
 
 str_arrows BYTE "ARROWS: move", 0
 str_space BYTE "SPACE: attack", 0
@@ -920,12 +923,9 @@ TryToMove PROC USES ebx ecx edi sprite:PTR SPRITE, currLevel:LEVEL, direction:DW
         ret
 
 
+
     TryToMove_no_cooldown:
-
-        mov ebx, (SPRITE PTR [edi]).posX
-        mov ecx, (SPRITE PTR [edi]).posY
         ;; Actually try to move, now
-
         mov ebx, (SPRITE PTR [edi]).posX
         mov ecx, (SPRITE PTR [edi]).posY
 
@@ -1037,6 +1037,10 @@ TryToAttack PROC USES edi ebx sprite:PTR SPRITE
         dec (SPRITE PTR [edi]).attack_cooldown
         ret
 
+        cmp (SPRITE PTR [edi]).attack_active, 1
+        jne TryToAttack_no_cooldown
+        ret
+
     TryToAttack_no_cooldown:
 
         ;; Set attack position to sprite position
@@ -1064,6 +1068,8 @@ TryToAttack PROC USES edi ebx sprite:PTR SPRITE
         mov (SPRITE PTR [edi]).attack_velX, 0
         mov (SPRITE PTR [edi]).attack_velY, ebx
 
+        jmp TryToAttack_done
+
     TryToAttack_not_up:
         ;; Check if direction is down
         cmp eax, 1
@@ -1071,6 +1077,8 @@ TryToAttack PROC USES edi ebx sprite:PTR SPRITE
 
         mov (SPRITE PTR [edi]).attack_velX, 0
         mov (SPRITE PTR [edi]).attack_velY, ebx
+
+        jmp TryToAttack_done
 
     TryToAttack_not_down:
         ;; Check if direction is left
@@ -1080,6 +1088,8 @@ TryToAttack PROC USES edi ebx sprite:PTR SPRITE
         neg ebx
         mov (SPRITE PTR [edi]).attack_velX, ebx
         mov (SPRITE PTR [edi]).attack_velY, 0
+
+        jmp TryToAttack_done
 
     TryToAttack_not_left:
         ;; Check if direction is right
@@ -1225,7 +1235,7 @@ GameInit PROC
         ;; Initialize the first treasure to have a fixed position
         ;; near the player. We are allowed to walk on treasures.
         mov ecx, OFFSET treasures
-        mov (SPRITE PTR [ecx]).posX, 10 ;12
+        mov (SPRITE PTR [ecx]).posX, 12
         mov (SPRITE PTR [ecx]).posY, 17
 
         mov (SPRITE PTR [ecx]).active, 1
@@ -1367,7 +1377,6 @@ GamePlay PROC
 
         ;; Done rendering treasures.
 
-
         xor ecx, ecx
         mov ebx, OFFSET berries
 
@@ -1387,7 +1396,6 @@ GamePlay PROC
         jl GamePlay_render_berries
 
         ;; Done rendering berries.
-    
 
         ;; Only render music tile if active
         cmp musicTile.active, 1
@@ -1398,7 +1406,7 @@ GamePlay PROC
     GamePlay_no_render_music:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Render player always
+    ;; Render player, always
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
         INVOKE RenderSpriteOnLevel, player, level
@@ -1601,48 +1609,9 @@ GamePlay PROC
         jl GamePlay_move_enemies
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Enemies randomly attack
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-        xor ecx, ecx
-        mov ebx, OFFSET enemies
-
-    GamePlay_enemy_attack:
-        ;; Only check active enemies
-        cmp (SPRITE PTR [ebx + ecx]).active, 1
-        jne GamePlay_enemy_no_attack
-
-        ;; Determine if enemy will attack this frame
-        push ecx
-        push ebx
-        invoke nrandom, 2
-        pop ebx
-        pop ecx
-
-        cmp eax, 0
-        jne GamePlay_enemy_no_attack
-
-        ;; Check if adjacent to player
-        mov eax, ebx
-        add eax, ecx
-        INVOKE SpriteDistance, eax, OFFSET player
-        cmp eax, 1
-        jg GamePlay_enemy_no_attack
-
-        ;; Enemy is going to try to attack!
-        mov eax, ebx
-        add eax, ecx
-        INVOKE TryToAttack, eax
-
-    GamePlay_enemy_no_attack:
-
-        add ecx, TYPE SPRITE
-        cmp ecx, SIZEOF enemies
-        jl GamePlay_enemy_attack
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Attack -- spacebar control
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
         mov eax, KeyPress
         cmp eax, VK_SPACE
         jne GamePlay_not_attack
@@ -1695,6 +1664,48 @@ GamePlay PROC
     GamePlay_not_attack:
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; Enemies randomly attack
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        xor ecx, ecx
+        mov ebx, OFFSET enemies
+
+
+    GamePlay_enemy_attack:
+
+        ;; Only check active enemies
+        cmp (SPRITE PTR [ebx + ecx]).active, 1
+        jne GamePlay_enemy_no_attack
+
+        ;; Determine if enemy will attack this frame
+        push ecx
+        push ebx
+        invoke nrandom, 2
+        pop ebx
+        pop ecx
+
+        cmp eax, 0
+        jne GamePlay_enemy_no_attack
+
+        ;; Check if adjacent to player
+        mov eax, ebx
+        add eax, ecx
+        INVOKE SpriteDistance, eax, OFFSET player
+        cmp eax, 1
+        jg GamePlay_enemy_no_attack
+
+        ;; Enemy is going to try to attack!
+        mov eax, ebx
+        add eax, ecx
+        INVOKE TryToAttack, eax
+
+    GamePlay_enemy_no_attack:
+
+        add ecx, TYPE SPRITE
+        cmp ecx, SIZEOF enemies
+        jl GamePlay_enemy_attack
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Collision detection (enemy attacks and player)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1702,15 +1713,15 @@ GamePlay PROC
         mov ebx, OFFSET enemies
 
     GamePlay_enemy_attack_loop:
-
         ;; Check if enemy active; if not, don't do collision detection
         cmp (SPRITE PTR [ebx + ecx]).active, 1
         jne GamePlay_enemy_attack_no_collision
 
+
         ;; Check if enemy attack active; if not, don't do collision detection
         cmp (SPRITE PTR [ebx + ecx]).attack_active, 1
         jne GamePlay_enemy_attack_no_collision
-
+ 
         ;; Check if attack hit a wall. If so, deactivate
         INVOKE LevelInfoTestBit, (SPRITE PTR [ebx + ecx]).attack_posX, (SPRITE PTR [ebx + ecx]).attack_posY, level, 0
         jnz GamePlay_enemy_attack_no_hit_wall
@@ -2110,6 +2121,16 @@ GamePlay PROC
         call wsprintf
         add esp, 12
         INVOKE DrawStr, OFFSET outStr_treasures_left, 440, 240, 0ffh
+
+        INVOKE DrawLine, 442, 260, 620, 260, 0ffh
+
+        ;; Explanations of sprites
+        INVOKE BasicBlit, OFFSET PKMN3_DOWN, 500, 280
+        INVOKE DrawStr, OFFSET str_player, 520, 280, 0ffh
+
+        INVOKE BasicBlit, OFFSET PKMN1_DOWN, 470, 310
+        INVOKE BasicBlit, OFFSET PKMN2_DOWN, 500, 310
+        INVOKE DrawStr, OFFSET str_enemies, 520, 310, 0ffh
 
 
         ;; Controls

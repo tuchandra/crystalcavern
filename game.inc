@@ -138,7 +138,7 @@ _SPRITE STRUCT
     ;; (attack_posX, attack_posY): grid position vector
     ;; (attack_velX, attack_velY): velocity vector
     attack_bitmap   DWORD   ?
-    attack_cooldown DWORD   10
+    attack_cooldown DWORD   0
     attack_active   DWORD   0
     attack_posX     DWORD   ?
     attack_posY     DWORD   ?
