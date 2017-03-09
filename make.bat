@@ -54,10 +54,10 @@ if %errorlevel% neq 0 goto :error
 ml /I%MASMINCPATH% /c  /coff  /Cp sprites.asm
 if %errorlevel% neq 0 goto :error
 
-ml /I%MASMINCPATH% /c  /coff  /Cp maps.asm
+ml /I%MASMINCPATH% /c  /coff  /Cp grid.asm
 if %errorlevel% neq 0 goto :error
 
-ml /I%MASMINCPATH% /c  /coff  /Cp grid.asm
+ml /I%MASMINCPATH% /c  /coff  /Cp maps.asm
 if %errorlevel% neq 0 goto :error
 
 link /SUBSYSTEM:WINDOWS  /LIBPATH:%MASMLIBPATH% game.obj blit.obj trig.obj lines.obj stars.obj libgame.obj sprites.obj grid.obj maps.obj
