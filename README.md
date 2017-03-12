@@ -1,5 +1,5 @@
 # Crystal Cavern
-![Crystal Cavern](readme_screenshot?raw=true)
+![Crystal Cavern](readme_screenshot.png?raw=true)
 
 This repo contains the code for a Pokemon-based dungeon crawler, loosely inspired by the [Pokemon Mystery Dungeon](https://en.wikipedia.org/wiki/Pok%C3%A9mon_Mystery_Dungeon) games. The game is written entirely in assembly for the course EECS 205: Fundamentals of Computer Systems Software.
 
